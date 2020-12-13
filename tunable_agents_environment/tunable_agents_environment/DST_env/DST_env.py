@@ -1,13 +1,19 @@
 from tunable_agents_environment import utility_functions
+from tf_agents.environments import py_environment
+from tf_agents.specs import array_spec
+from tf_agents.trajectories import time_step as ts
+
+from tf_agents.typing import types
 from collections.abc import Callable
 from typing import Tuple, List, Union
+
 import numpy as np
 
 GRID_ROWS = 11
 GRID_COLS = 10
 
 TREASURE_DEPTHS = [1, 2, 3, 4, 4, 4, 7, 7, 9, 10]
-TREASURE_VALUES = [1, 2, 3, 5, 8, 16, 24, 50, 74, 124]
+TREASURE_VALUES = [1., 2., 3., 5., 8., 16., 24., 50., 74., 124.]
 UTILITY_FUNCTIONS = (utility_functions.linear_utility, utility_functions.polinomial_utility, utility_functions.threshold_utility)
 
 # UP, DOWN, LEFT, RIGHT
@@ -20,48 +26,92 @@ class DeepSeaTreasureEnvironment:
         self._utility_function: Callable[[np.ndarray, np.ndarray], np.ndarray] = None
     
     
-    def reset(self):
-        self.n_steps = 0
-        self.state = [0, 0]
+    def reset(self) -> Tuple[List[int], Tuple[bool]]:
+        self._n_steps = 0
+        self._state = [0, 0]
         self._utility_function = np.random.choice(UTILITY_FUNCTIONS)
-        return self.state
+        legal_moves = self._legal_moves()
+        return self._state, legal_moves
     
     
-    def step(self, action: int):
+    def step(self, action: int) -> Tuple[List[int], Tuple[bool], Tuple[float], bool]:
         """
-        Transition the environment through the input action
+        Transition the environment through the input action.
+        Arg:
+            action: an integer in [0, 3] that identifies the action to be taken. Must be a legal move.
+        Returns:
+
         """
-        self.n_steps += 1
+        # 
+        self._n_steps += 1
         
-        self.state[0] += ACTIONS[action][0]
-        self.state[1] += ACTIONS[action][1]
+        self._state[0] += ACTIONS[action][0]
+        self._state[1] += ACTIONS[action][1]
         
-        legal_actions = self._legal_actions()
+        legal_moves = self._legal_moves()
         rewards = self._get_rewards()
-        state = self.state
+        obs = self._state
         done = self._is_terminal()
-        return state, rewards, done
+        return obs, legal_moves, rewards, done
     
     
-    def _legal_actions(self) -> List[bool]:
-        #TODO Define legal actions in the correct format for the agent.
-        if self.state[1] == 6 and self.state[0] in (5, 6):
-            return
-        if self.state[1] == 8 and self.state[0] == 8:
-            return
+    def _legal_moves(self) -> Tuple[bool]:
+        """
+        Returns a 4-tuple of bool values specifying for every action (Up, Down, Left, Right)
+        if it's valid (True) or not (False).
+        """
+        if self._state[0] == 0:
+            # Can't go up
+            if self._state[1] == 0:
+                # Can't go left
+                return (False, True, False, True)
+            if self._state[1] == GRID_COLS - 1:
+                # Can't go right
+                return (False, True, True, False)
+            return (False, True, True, True)
         
+        if self._state[1] == GRID_COLS - 1:
+            # Can't go right
+            return (True, True, True, False)
+            
+        if (self._state[1] == 6 and self._state[0] in (5, 6)) or (self._state[1] == 8 and self._state[0] == 8):
+            # Can't go left because of sea floor
+            return (True, True, False, True)
+        
+        return (True, True, True, True)
+    
+    
+    def _get_rewards(self) -> Tuple[float]:
+        treasure_cond = self._state in self._treasure_locations
+        return (-1., TREASURE_VALUES[self._state[1]] if treasure_cond else 0)         # (time_penalty, treasure_reward)
+    
+    
+    def _is_terminal(self) -> bool:
+        return (self._state in self._treasure_locations) or (self._n_steps > 200)
+
+
+class DST_wrapper(py_environment.PyEnvironment):
+    def __init__(self, gamma) -> None:
+        super().__init__()
+        self._env = DeepSeaTreasureEnvironment
+        self.gamma = gamma
+        self._observation_spec = {'observations': array_spec.ArraySpec(shape=(2,), dtype=np.int64),
+                                  'legal_moves': array_spec.ArraySpec(shape=(4,), dtype=np.bool_)}
+        self._action_spec = array_spec.BoundedArraySpec(shape=(), dtype=np.int_, minimum=0, maximum=self.num_moves() - 1)
+    
+    
+    def observation_spec(self) -> types.NestedArraySpec:
+        return self._observation_spec()
+    
+    
+    def action_spec(self) -> types.NestedArraySpec:
+        return self._action_spec()
+    
+    def _reset(self) -> ts.TimeStep:
         return
     
-    
-    def _get_rewards(self):
-        treasure_cond = self.state in self._treasure_locations
-        return (-1, TREASURE_VALUES[self.state[1]] if treasure_cond else 0)         # (time_penalty, treasure_reward)
-    
-    
-    def _is_terminal(self):
-        return (self.state in self._treasure_locations) or (self.n_steps > 200)
+    def _step(self, action: types.NestedArray) -> ts.TimeStep:
+        if self._current_time_step.is_last():
+            return self.reset()
+        return
 
-
-class DST_wrapper():
-    def __init__(self) -> None:
-        super().__init__()
