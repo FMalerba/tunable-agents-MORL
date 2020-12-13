@@ -93,7 +93,7 @@ class DeepSeaTreasureEnvironment:
 class DST_wrapper(py_environment.PyEnvironment):
     def __init__(self, gamma) -> None:
         super().__init__()
-        self._env = DeepSeaTreasureEnvironment
+        self._env = DeepSeaTreasureEnvironment()
         self.gamma = gamma
         self._observation_spec = {'observations': array_spec.ArraySpec(shape=(2,), dtype=np.int64),
                                   'legal_moves': array_spec.ArraySpec(shape=(4,), dtype=np.bool_)}
@@ -107,11 +107,27 @@ class DST_wrapper(py_environment.PyEnvironment):
     def action_spec(self) -> types.NestedArraySpec:
         return self._action_spec()
     
+    
     def _reset(self) -> ts.TimeStep:
-        return
+        obs, legal_moves = self._env.reset()
+        observations_and_legal_moves = {'observations': obs,
+                                        'legal_moves': legal_moves}
+        return ts.restart(observations_and_legal_moves)
+    
     
     def _step(self, action: types.NestedArray) -> ts.TimeStep:
         if self._current_time_step.is_last():
             return self.reset()
-        return
+        
+        obs, legal_moves, rewards, done = self._env.step(action)
+        
+        observations_and_legal_moves = {'observations': obs,
+                                        'legal_moves': legal_moves}
+        
+        # TODO Manage the reward-utility
+        if done:
+            return ts.termination(observations_and_legal_moves, reward)
+        else:
+            return ts.transition(observations_and_legal_moves, reward, self.gamma)
+        
 
