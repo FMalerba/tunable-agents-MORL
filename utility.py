@@ -7,7 +7,7 @@ from tf_agents.networks import q_network
 from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.utils import common
 from tf_agents.trajectories import time_step as ts
-from tf_agents.environments import tf_py_environment
+from tf_agents.environments import tf_py_environment, py_environment
 import tensorflow as tf
 
 Agent = Union[dqn_agent.DqnAgent, dqn_agent.DdqnAgent, categorical_dqn_agent.CategoricalDqnAgent]
@@ -15,30 +15,30 @@ Agent = Union[dqn_agent.DqnAgent, dqn_agent.DdqnAgent, categorical_dqn_agent.Cat
 def load_gin_configs(gin_files, gin_bindings):
     """Loads gin configuration files.
 
-	Args:
-	  gin_files: A list of paths to the gin configuration files for this
-		experiment.
-	  gin_bindings: List of gin parameter bindings to override the values in the
-		config files.
-	"""
+    Args:
+      gin_files: A list of paths to the gin configuration files for this
+        experiment.
+      gin_bindings: List of gin parameter bindings to override the values in the
+        config files.
+    """
     gin.parse_config_files_and_bindings(gin_files,
                                         bindings=gin_bindings,
                                         skip_unknown=False)
 
 
 @gin.configurable
-def create_environment(game_type='Hanabi-Full'):
+def create_environment(game: str = 'DST') -> py_environment.PyEnvironment:
     """Creates the environment.
-
-	Args:
-	  game_type: Type of game to play. Currently the following are supported:
-		Hanabi-Full: Regular game.
-		Hanabi-Small: The small version of Hanabi, with 2 cards and 2 colours.
-
-	Returns:
-		A PyEnvironment object environment.
-	"""
-    raise NotImplementedError('Still have to do this')
+    
+    Args:
+        game: Game to be played
+    
+    Returns:
+    A PyEnvironment object environment.
+    """
+    if game == 'DST':
+        return tunable_agents_environment.DST_wrapper()
+    raise NotImplementedError('Game is not among the implemented games')
 
 
 @gin.configurable(blacklist=['environment', 'train_step_counter'])
@@ -48,43 +48,43 @@ def create_agent(
         fc_layer_params: Tuple[int],
         learning_rate: float,
         decaying_epsilon: Callable[[], float],
-        n_step_update,
-        target_update_tau,
-        target_update_period,
-        gamma,
-        reward_scale_factor,
-        gradient_clipping,
-        debug_summaries,
-        summarize_grads_and_vars,
-        train_step_counter,
-        num_atoms=None,  # Only for categorical_dqn
-        min_q_value=None,  # Only for categorical_dqn
-        max_q_value=None,  # Only for categorical_dqn
+        n_step_update: int,
+        target_update_tau: float,
+        target_update_period: int,
+        gamma: float,
+        reward_scale_factor: float,
+        gradient_clipping: float,
+        debug_summaries: bool,
+        summarize_grads_and_vars: bool,
+        train_step_counter: tf.Variable,
+        num_atoms: int = None,      # Only for categorical_dqn
+        min_q_value: float = None,  # Only for categorical_dqn
+        max_q_value: float = None,  # Only for categorical_dqn
 ) -> Agent:
     """
- Creates the agent.
+    Creates the agent.
 
-	Args:
-	  agent_class: str, type of agent to construct.
-	  environment: The environment.
-	  learning_rate: The Learning Rate
-	  decaying_epsilon: Epsilon for Epsilon Greedy Policy
-	  target_update_tau: Agent parameter
-	  target_update_period: Agent parameter
-	  gamma: Agent parameter
-	  reward_scale_factor: Agent parameter
-	  gradient_clipping: Agent parameter
-	  debug_summaries: Agent parameter
-	  summarize_grads_and_vars: Agent parameter
-	  train_step_counter: The train step tf.Variable to be passed to agent
+    Args:
+      agent_class: str, type of agent to construct.
+      environment: The environment.
+      learning_rate: The Learning Rate
+      decaying_epsilon: Epsilon for Epsilon Greedy Policy
+      target_update_tau: Agent parameter
+      target_update_period: Agent parameter
+      gamma: Agent parameter
+      reward_scale_factor: Agent parameter
+      gradient_clipping: Agent parameter
+      debug_summaries: Agent parameter
+      summarize_grads_and_vars: Agent parameter
+      train_step_counter: The train step tf.Variable to be passed to agent
 
 
-	Returns:
-	  An agent for playing Hanabi.
+    Returns:
+      An agent for playing Hanabi.
 
-	Raises:
-	  ValueError: if an unknown agent type is requested.
-	"""
+    Raises:
+      ValueError: if an unknown agent type is requested.
+    """
     if agent_class == 'DQN':
         return dqn_agent.DqnAgent(
             environment.time_step_spec(),
@@ -160,7 +160,7 @@ def create_agent(
 
 
 @gin.configurable(blacklist=['data_spec', 'batch_size'])
-def create_replay_buffer(data_spec, batch_size: int, max_length: int):
+def create_replay_buffer(data_spec, batch_size: int, max_length: int) -> tf_uniform_replay_buffer.TFUniformReplayBuffer:
     return tf_uniform_replay_buffer.TFUniformReplayBuffer(
         data_spec=data_spec, batch_size=batch_size, max_length=max_length),
 
@@ -168,7 +168,7 @@ def create_replay_buffer(data_spec, batch_size: int, max_length: int):
 
 @gin.configurable(blacklist=['train_step'])
 def decaying_epsilon(initial_epsilon: float,
-                     train_step,
+                     train_step: tf.Variable,
                      decay_time: int,
                      decay_type: Union[str, None] = 'exponential',
                      reset_at_step: int = None) -> float:
