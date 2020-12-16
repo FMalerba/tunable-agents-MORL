@@ -2,6 +2,7 @@ from tunable_agents_environment import utility_functions
 from tf_agents.environments import py_environment
 from tf_agents.specs import array_spec
 from tf_agents.trajectories import time_step as ts
+import gin.tf
 
 from tf_agents.typing import types
 from collections.abc import Callable
@@ -14,7 +15,6 @@ GRID_COLS = 10
 
 TREASURE_DEPTHS = [1, 2, 3, 4, 4, 4, 7, 7, 9, 10]
 TREASURE_VALUES = [1., 2., 3., 5., 8., 16., 24., 50., 74., 124.]
-UTILITY_FUNCTIONS = (utility_functions.linear_utility, utility_functions.polinomial_utility, utility_functions.threshold_utility)
 
 # UP, DOWN, LEFT, RIGHT
 ACTIONS = [[-1,0],[1,0],[0,-1],[0,1]]
@@ -29,7 +29,7 @@ class DeepSeaTreasureEnvironment:
     def reset(self) -> Tuple[List[int], Tuple[bool]]:
         self._n_steps = 0
         self._state = [0, 0]
-        self._utility_function = np.random.choice(UTILITY_FUNCTIONS)
+        self._utility_function = utility_functions.generate_utility()
         legal_moves = self._legal_moves()
         return self._state, legal_moves
     
@@ -90,8 +90,9 @@ class DeepSeaTreasureEnvironment:
         return (self._state in self._treasure_locations) or (self._n_steps > 200)
 
 
+@gin.configurable
 class DST_wrapper(py_environment.PyEnvironment):
-    def __init__(self, gamma) -> None:
+    def __init__(self, gamma: float) -> None:
         super().__init__()
         self._env = DeepSeaTreasureEnvironment()
         self.gamma = gamma
