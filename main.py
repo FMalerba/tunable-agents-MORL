@@ -46,28 +46,28 @@ def run_verbose_mode(agent_1, agent_2):
 
 @gin.configurable
 def train_eval(
-    root_dir,
-    num_iterations,
+    root_dir: str,
+    num_iterations: int,
     # Params for collect
-    collect_episodes_per_epoch,
+    collect_episodes_per_epoch: int,
     # Number of steps for training update
-    num_steps,
+    num_steps: int,
     # Params for decaying Epsilon
-    initial_epsilon,
-    decay_type,
-    decay_time,
-    reset_at_step,
+    initial_epsilon: float,
+    decay_type: str,
+    decay_time: int,
+    reset_at_step: int,
     # Params for train
-    train_steps_per_epoch,
-    batch_size,
+    train_steps_per_epoch: int,
+    batch_size: int,
     # Params for eval
-    eval_interval,
-    num_eval_episodes,
+    eval_interval: int,
+    num_eval_episodes: int,
     # Params for checkpoints, summaries, and logging
-    train_checkpoint_interval,
-    policy_checkpoint_interval,
-    rb_checkpoint_interval,
-    summaries_flush_secs=10,
+    train_checkpoint_interval: int,
+    policy_checkpoint_interval: int,
+    rb_checkpoint_interval: int,
+    summaries_flush_secs: int = 10,
 ):
     """A simple train and eval for DQN."""
     root_dir = os.path.expanduser(root_dir)
@@ -110,9 +110,9 @@ def train_eval(
         utility.create_environment())
 
     train_step = tf.Variable(0,
-                               trainable=False,
-                               name='global_step',
-                               dtype=tf.int64)
+                             trainable=False,
+                             name='global_step',
+                             dtype=tf.int64)
 
     epoch_counter = tf.Variable(0,
                                 trainable=False,
@@ -121,11 +121,11 @@ def train_eval(
 
     # Epsilon implementing decaying behaviour for the two agents
     decaying_epsilon = partial(utility.decaying_epsilon,
-                                 initial_epsilon=initial_epsilon,
-                                 train_step=epoch_counter,
-                                 decay_type=decay_type,
-                                 decay_time=decay_time,
-                                 reset_at_step=reset_at_step)
+                               initial_epsilon=initial_epsilon,
+                               train_step=epoch_counter,
+                               decay_type=decay_type,
+                               decay_time=decay_time,
+                               reset_at_step=reset_at_step)
 
     """
 	TODO Performance Improvement: "When training on GPUs, make use of the TensorCore. GPU kernels use
@@ -139,20 +139,20 @@ def train_eval(
     # create an agent and a network
     tf_agent = utility.create_agent(
         environment=tf_env,
-        n_step_update=num_steps -
-        1,  # num_steps parameter must differ by 1 between agent and replay_buffer.as_dataset() call
+        # num_steps parameter must differ by 1 between agent and replay_buffer.as_dataset() call
+        n_step_update=num_steps - 1,  
         decaying_epsilon=decaying_epsilon,
         train_step_counter=train_step)
 
     # replay buffer
-    replay_buffer, prb_flag = utility.create_replay_buffer(
-        data_spec=tf_agent.collect_data_spec, batch_size=tf_env.batch_size)
+    replay_buffer = utility.create_replay_buffer(data_spec=tf_agent.collect_data_spec,
+                                                 batch_size=tf_env.batch_size)
 
     # metrics
     train_metrics = [
         tf_metrics.NumberOfEpisodes(),
         tf_metrics.EnvironmentSteps(),
-        tf_metrics.HanabiAverageReturnMetric(
+        tf_metrics.AverageReturnMetric(
             buffer_size=collect_episodes_per_epoch),
         tf_metrics.AverageEpisodeLengthMetric(
             buffer_size=collect_episodes_per_epoch),
@@ -162,7 +162,7 @@ def train_eval(
     replay_observer = [replay_buffer.add_batch]
 
     eval_metrics = [
-        tf_metrics.HanabiAverageReturnMetric(buffer_size=num_eval_episodes),
+        tf_metrics.AverageReturnMetric(buffer_size=num_eval_episodes),
         tf_metrics.AverageEpisodeLengthMetric(buffer_size=num_eval_episodes),
     ]
 
@@ -253,7 +253,7 @@ def train_eval(
                 buffer_size=tf.data.experimental.AUTOTUNE)
 
         print(
-            'Starting partial training of both Agents from Replay Buffer\nCounting Steps:'
+            'Starting partial training of Agent from Replay Buffer\nCounting Steps:'
         )
         # Commenting out losses_1/_2 (and all their relevant code) to try and see if they are responsible for an observed memory leak.
         # No feedback available yet on whether this is the case or not
@@ -284,7 +284,7 @@ def train_eval(
             c += 1
 
         # losses = losses.stack()
-        print("Ended epoch training of both Agents, it took {}".format(
+        print("Ended epoch training for agent, it took {}".format(
             time.time() - start_time))
 
         epoch_counter.assign_add(1)
