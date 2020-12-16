@@ -1,0 +1,3 @@
+[submodule "tunable_agents_environment/tunable_agents_environment/gathering_env/gym-mo"]
+	path = tunable_agents_environment/tunable_agents_environment/gathering_env/gym-mo
+	url = https://github.com/FMalerba/gym-mo
