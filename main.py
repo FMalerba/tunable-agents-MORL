@@ -1,6 +1,5 @@
 import os
 import time
-from typing import Callable
 
 from absl import app
 from absl import flags
@@ -75,11 +74,6 @@ def train_eval(
     collect_episodes_per_epoch: int,
     # Number of steps for training update
     num_steps: int,
-    # Params for decaying Epsilon
-    initial_epsilon: float,
-    decay_type: str,
-    decay_time: int,
-    reset_at_step: int,
     # Params for train
     train_steps_per_epoch: int,
     batch_size: int,
@@ -90,7 +84,6 @@ def train_eval(
     train_checkpoint_interval: int,
     policy_checkpoint_interval: int,
     rb_checkpoint_interval: int,
-    summaries_flush_secs: int = 10,
 ):
     """A simple train and eval for DQN."""
     root_dir = os.path.expanduser(root_dir)
@@ -103,12 +96,12 @@ def train_eval(
 		relative to the epochs that had been executed, but not checkpointed. How to solve this? No idea. 
 	"""
     train_summary_writer = tf.summary.create_file_writer(
-        train_dir, flush_millis=summaries_flush_secs * 1000)
+        train_dir, flush_millis=10000)
 
     train_summary_writer.set_as_default()
 
     eval_summary_writer = tf.summary.create_file_writer(
-        eval_dir, flush_millis=summaries_flush_secs * 1000)
+        eval_dir, flush_millis=10000)
 
     tf.profiler.experimental.server.start(6009)
     """
