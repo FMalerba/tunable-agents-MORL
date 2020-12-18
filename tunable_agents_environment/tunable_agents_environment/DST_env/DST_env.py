@@ -6,7 +6,7 @@ import gin.tf
 
 from tf_agents.typing import types
 from collections.abc import Callable
-from typing import Tuple, List, Union
+from typing import Tuple, List
 
 import numpy as np
 
@@ -102,11 +102,11 @@ class DST_wrapper(py_environment.PyEnvironment):
     
     
     def observation_spec(self) -> types.NestedArraySpec:
-        return self._observation_spec()
+        return self._observation_spec
     
     
     def action_spec(self) -> types.NestedArraySpec:
-        return self._action_spec()
+        return self._action_spec
     
     
     def _reset(self) -> ts.TimeStep:
