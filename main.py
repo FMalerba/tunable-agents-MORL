@@ -14,7 +14,6 @@ from tf_agents.eval import metric_utils
 from tf_agents.metrics import tf_metrics
 #from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.utils import common
-from functools import partial
 
 gpus = tf.config.experimental.list_physical_devices('GPU')
 tf.config.experimental.set_memory_growth(gpus[0], True)
@@ -47,8 +46,10 @@ def run_verbose_mode(agent_1, agent_2):
 @gin.configurable
 def train_eval(
     root_dir: str,
+    experiment_name: str,
+    env_id: str,    # Used to identify a unique environment for RB reuse
     num_iterations: int,
-    # Params for collect
+    # Param for collect
     collect_episodes_per_epoch: int,
     # Number of steps for training update
     num_steps: int,
@@ -63,29 +64,24 @@ def train_eval(
     # Params for eval
     eval_interval: int,
     num_eval_episodes: int,
-    # Params for checkpoints, summaries, and logging
-    train_checkpoint_interval: int,
-    policy_checkpoint_interval: int,
-    rb_checkpoint_interval: int,
-    summaries_flush_secs: int = 10,
+    # Param for checkpoints
+    checkpoint_interval: int
 ):
     """A simple train and eval for DQN."""
     root_dir = os.path.expanduser(root_dir)
-    train_dir = os.path.join(root_dir, 'train')
-    eval_dir = os.path.join(root_dir, 'eval')
-    """
-	FIXME Checkpointing doesn't synergize with tensorboard summaries, i.e. if you checkpoint
-		at some point, execute some epochs (which are not checkpointed), stop the program and run again 
-		from the last saved checkpoint; then tensorboard  will receive (and display) twice the summaries 
-		relative to the epochs that had been executed, but not checkpointed. How to solve this? No idea. 
-	"""
+    experiment_dir = os.path.join(root_dir, experiment_name)
+    train_dir = os.path.join(experiment_dir, 'train')
+    eval_dir = os.path.join(experiment_dir, 'eval')
+    
+    # The summary writers are set with a 2h flush interval. They are actually meant to never
+    # flush by themselves, but only when flush is called on checkpointing. This is to synch
+    # tensorboard summaries with the checkpoints so as to not write summaries twice in case of
+    # restart of the code. Careful not to checkpoint too seldomly to avoid abusing memory.
     train_summary_writer = tf.summary.create_file_writer(
-        train_dir, flush_millis=summaries_flush_secs * 1000)
-
+        train_dir, flush_millis=3600*2*1000)
     train_summary_writer.set_as_default()
-
     eval_summary_writer = tf.summary.create_file_writer(
-        eval_dir, flush_millis=summaries_flush_secs * 1000)
+        eval_dir, flush_millis=3600*2*1000)
 
     tf.profiler.experimental.server.start(6009)
     """
@@ -120,12 +116,7 @@ def train_eval(
                                 dtype=tf.int64)
 
     # Epsilon implementing decaying behaviour for the two agents
-    decaying_epsilon = partial(utility.decaying_epsilon,
-                               initial_epsilon=initial_epsilon,
-                               train_step=epoch_counter,
-                               decay_type=decay_type,
-                               decay_time=decay_time,
-                               reset_at_step=reset_at_step)
+    decaying_epsilon = utility.decaying_epsilon()
 
     """
 	TODO Performance Improvement: "When training on GPUs, make use of the TensorCore. GPU kernels use
@@ -167,7 +158,7 @@ def train_eval(
     ]
 
     # checkpointer:
-    train_checkpointer = common.Checkpointer(ckpt_dir=train_dir,
+    train_checkpointer = common.Checkpointer(ckpt_dir=os.path.join(experiment_dir, 'checkpoints', 'train'),
                                              agent=tf_agent,
                                              train_step=train_step,
                                              epoch_counter=epoch_counter,
@@ -175,11 +166,11 @@ def train_eval(
                                                  train_metrics,
                                                  'train_metrics'))
 
-    policy_checkpointer = common.Checkpointer(ckpt_dir=os.path.join(train_dir, 'policy'),
+    policy_checkpointer = common.Checkpointer(ckpt_dir=os.path.join(experiment_dir, 'checkpoints', 'policy'),
                                               policy=tf_agent.policy)
 
-    rb_checkpointer = common.Checkpointer(ckpt_dir=os.path.join(train_dir, 'replay_buffer'),
-                                          max_to_keep=3,
+    rb_checkpointer = common.Checkpointer(ckpt_dir=os.path.join(root_dir, 'replay_buffers', env_id),
+                                          max_to_keep=1,
                                           replay_buffer=replay_buffer)
     """
 	FIXME Tensorflow documentation of tf.function (https://www.tensorflow.org/api_docs/python/tf/function)
@@ -296,16 +287,11 @@ def train_eval(
         train_metrics[2].reset()
         train_metrics[3].reset()
 
-        train_summary_writer.flush()
-
-        # Checkpointing
-        if epoch_counter.numpy() % train_checkpoint_interval == 0:
+        # Checkpointing and flushing summaries
+        if epoch_counter.numpy() % checkpoint_interval == 0:
+            train_summary_writer.flush()
             train_checkpointer.save(global_step=epoch_counter.numpy())
-
-        if epoch_counter.numpy() % policy_checkpoint_interval == 0:
             policy_checkpointer.save(global_step=epoch_counter.numpy())
-
-        if epoch_counter.numpy() % rb_checkpoint_interval == 0:
             rb_checkpointer.save(global_step=epoch_counter.numpy())
 
         # Evaluation Run
