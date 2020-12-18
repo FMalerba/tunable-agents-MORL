@@ -72,7 +72,7 @@ class ObservationStacker(object):
 
 
 @gin.configurable(blacklist=['environment'])
-def create_obs_stacker(environment: py_environment.PyEnvironment, history_size: int = 4):
+def create_obs_stacker(environment: py_environment.PyEnvironment, history_size: int = 3):
     """Creates an observation stacker.
 
     Args:
@@ -95,17 +95,12 @@ class Gathering_wrapper(py_environment.PyEnvironment):
     def __init__(self, preference: np.ndarray = None,
                  gamma: float = 0.99, history_size: int = 3) -> None:
         super().__init__()
-        # TODO make the environment so that if a preference vector is passed to the wrapper
-        # then the preferences are fixed by it. If it's not passed, a new preference vector is
-        # sampled every new episode (reset call). The MO-env under the wrapper already accepts
-        # a prefernce vector as input in its reset, I just need to modify the wrapper's _reset to
-        # sample a preference vector like Daniel and push it down
         self._preference = preference
         self._env = mo_gathering_env.MOGatheringEnv()
         self.gamma = gamma
         self._obs_stacker = create_obs_stacker(self, history_size=history_size)
         self._observation_spec = {'observations': array_spec.ArraySpec(shape=(2,), dtype=np.int64),
-                                  'weights': array_spec.ArraySpec(shape=(2,), dtype=np.int64)}
+                                  'preference_weights': array_spec.ArraySpec(shape=(6,), dtype=np.float32)}
         self._action_spec = array_spec.BoundedArraySpec(shape=(), dtype=np.int_, minimum=0, maximum=4)
     
     
@@ -119,12 +114,12 @@ class Gathering_wrapper(py_environment.PyEnvironment):
     
     def _reset(self) -> ts.TimeStep:
         if self._preference:
-            obs, legal_moves = self._env.reset(self._preference)
+            obs = self._env.reset(self._preference)
         else:
-            obs, legal_moves = self._env.reset(self._sample_preference)
-        observations_and_legal_moves = {'observations': obs,
-                                        'legal_moves': legal_moves}
-        return ts.restart(observations_and_legal_moves)
+            obs = self._env.reset(utility_functions.sample_preference())
+        observations_and_preferences = {'observations': obs,
+                                        'preference_weights': self._preference/40}
+        return ts.restart(observations_and_preferences)
     
     
     def _step(self, action: types.NestedArray) -> ts.TimeStep:
@@ -133,12 +128,13 @@ class Gathering_wrapper(py_environment.PyEnvironment):
         
         obs, rewards, done = self._env.step(action)
         
-        observations_and_legal_moves = {'observations': obs,
-                                        'legal_moves': legal_moves}
+        # Preferences are in range [-20, 20] we normalize them to the range [-0.5, 0.5]
+        observations_and_preferences = {'observations': obs,
+                                        'preference_weights': self._preference/40}
         
-        # TODO Manage the reward-utility
+        reward = np.dot(rewards, self._preference)
         if done:
-            return ts.termination(observations_and_legal_moves, reward)
+            return ts.termination(observations_and_preferences, reward)
         else:
-            return ts.transition(observations_and_legal_moves, reward, self.gamma)
-        
+            return ts.transition(observations_and_preferences, reward, self.gamma)
+    

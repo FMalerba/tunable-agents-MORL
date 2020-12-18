@@ -1,7 +1,6 @@
 from typing import Callable
 import numpy as np
 from functools import partial
-from scipy.special import softmax
 import gin
 
 
@@ -21,6 +20,19 @@ def threshold_utility(reward: np.ndarray, thresholds: np.ndarray) -> float:
 def generate_random_weights(shape: tuple = (2,)) -> np.ndarray:
     weights = np.random.uniform(size=shape)
     return weights/np.sum(weights)
+
+
+def sample_preference() -> np.ndarray:
+    """
+    Samples a 6-long vector of preferences for the gathering environment replication study.
+    Each preference weight is randomly sampled between -20 and 20 in steps of 5 with the 
+    exception of the first two entries which are fixed at -1 and -5. They respectively signal
+    the punishment for taking a further time-step and the punishment for hitting a wall
+    """
+    # The 4 entries of pref are the preference for (respectively): Green, Red, Yellow, Other agent taking red
+    pref = np.random.choice(np.arange(-4, 5, dtype=np.float32), size=4)*5
+    w01 = np.array([-1, -5], dtype=np.float32)
+    return np.concatenate((w01, pref))
 
 
 @gin.configurable
