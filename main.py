@@ -1,5 +1,6 @@
 import os
 import time
+from typing import Callable
 
 from absl import app
 from absl import flags
@@ -8,11 +9,11 @@ from absl import logging
 import gin
 from . import utility
 import tensorflow as tf
+from tf_agents.agents import tf_agent
 from tf_agents.drivers import dynamic_episode_driver
 from tf_agents.environments import tf_py_environment
 from tf_agents.eval import metric_utils
 from tf_agents.metrics import tf_metrics
-#from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.utils import common
 
 gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -41,6 +42,28 @@ def run_verbose_mode(agent_1, agent_2):
     tf_env = tf_py_environment.TFPyEnvironment(env)
 
     state = tf.env.reset()
+
+
+@gin.configurable(whitelist=['collect_episodes'])
+def initial_collection(agent: tf_agent.TFAgent,
+                       env: tf_py_environment.TFPyEnvironment,
+                       rb_observer: list,
+                       collect_episodes: int) -> None:
+    """
+    Samples transitions with the given agent and environment without training
+    on the experience collected. This is done to partially fill-up the Replay Buffer.
+    """
+    if collect_episodes:
+        collect_policy = agent.collect_policy
+        print('Sampling {} episodes with no training'.format(collect_episodes))
+        start_time = time.time()
+        dynamic_episode_driver.DynamicEpisodeDriver(
+            env, collect_policy,
+            observers=rb_observer,
+            num_episodes=collect_episodes).run()
+        print(
+            'Finished sampling with the Driver, it took {} seconds for {} episodes\n'.
+            format(time.time() - start_time, collect_episodes))
 
 
 @gin.configurable
@@ -116,7 +139,7 @@ def train_eval(
                                 dtype=tf.int64)
 
     # Epsilon implementing decaying behaviour for the two agents
-    decaying_epsilon = utility.decaying_epsilon()
+    decaying_epsilon = utility.decaying_epsilon(step=epoch_counter)
 
     """
 	TODO Performance Improvement: "When training on GPUs, make use of the TensorCore. GPU kernels use
@@ -156,6 +179,16 @@ def train_eval(
         tf_metrics.AverageReturnMetric(buffer_size=num_eval_episodes),
         tf_metrics.AverageEpisodeLengthMetric(buffer_size=num_eval_episodes),
     ]
+    
+    # I create the Driver only once instead of recreating it at the start of every epoch
+    # This is not a problem only because the agent's collect_policy has the agent's network
+    # and its tensors will update together with the agent's on agent.train() calls.
+    # If the agent is has a policy that doesn't depend only on Tensors, one must recreate a new
+    # policy after every epoch and create a new Driver to feed this to.
+    collect_driver = dynamic_episode_driver.DynamicEpisodeDriver(
+        tf_env, tf_agent.collect_policy,
+        observers=replay_observer + train_metrics,
+        num_episodes=collect_episodes_per_epoch)
 
     # checkpointer:
     train_checkpointer = common.Checkpointer(ckpt_dir=os.path.join(experiment_dir, 'checkpoints', 'train'),
@@ -194,10 +227,10 @@ def train_eval(
     agent_train_function = common.function(tf_agent.train)
 
     tf.config.optimizer.set_jit(True)       # Care that JIT only improves performance idf stuff doesn't change shapes often
+    
+    initial_collection(tf_agent, tf_env, replay_observer)
+    
     for _ in range(num_iterations):
-        # the two policies we use to collect data
-        collect_policy = tf_agent.collect_policy
-
         print('EPOCH {}'.format(epoch_counter.numpy()))
         tf.summary.scalar(name='Epsilon',
                           data=decaying_epsilon(),
@@ -205,17 +238,7 @@ def train_eval(
         # episode driver
         print('\nStarting to run the Driver')
         start_time = time.time()
-        """
-		TODO Performance Optimization: TF recommends not running the metrics at every step when running/training a model, but
-			instead to run them every few steps. Our problem is that to know how many cards it plays in one episode (or how long an episode is)
-			we need to keep track of what's happening at every single step with no exception. I thus suggest maybe logging the metrics every 
-			couple of episodes instead of every episode so that we can gain (maybe, needs to be tested) some performance improvement without 
-			loosing too much info on what's happening.
-		"""
-        dynamic_episode_driver.DynamicEpisodeDriver(
-            tf_env, collect_policy,
-            observers=replay_observer + train_metrics,
-            num_episodes=collect_episodes_per_epoch).run()
+        collect_driver.run()
         print(
             'Finished running the Driver, it took {} seconds for {} episodes\n'.
             format(time.time() - start_time, collect_episodes_per_epoch))
@@ -243,9 +266,8 @@ def train_eval(
             num_steps=num_steps).prefetch(
                 buffer_size=tf.data.experimental.AUTOTUNE)
 
-        print(
-            'Starting partial training of Agent from Replay Buffer\nCounting Steps:'
-        )
+        print('Starting partial training of Agent from Replay Buffer'
+              '\nCounting Steps:')
         # Commenting out losses_1/_2 (and all their relevant code) to try and see if they are responsible for an observed memory leak.
         # No feedback available yet on whether this is the case or not
         # losses = tf.TensorArray(tf.float32, size=train_steps_per_epoch)
