@@ -1,5 +1,6 @@
 from typing import Callable, Tuple, Union
 import gin.tf
+from tf_agents.agents import tf_agent
 from tf_agents.agents.dqn import dqn_agent
 from tf_agents.agents.categorical_dqn import categorical_dqn_agent
 from tf_agents.networks import categorical_q_network
@@ -8,9 +9,11 @@ from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.utils import common
 from tf_agents.trajectories import time_step as ts
 from tf_agents.environments import tf_py_environment, py_environment
+
 import tensorflow as tf
 
-Agent = Union[dqn_agent.DqnAgent, dqn_agent.DdqnAgent, categorical_dqn_agent.CategoricalDqnAgent]
+from functools import partial
+
 
 def load_gin_configs(gin_files, gin_bindings):
     """Loads gin configuration files.
@@ -60,7 +63,7 @@ def create_agent(
         num_atoms: int = None,      # Only for categorical_dqn
         min_q_value: float = None,  # Only for categorical_dqn
         max_q_value: float = None,  # Only for categorical_dqn
-) -> Agent:
+) -> tf_agent.TFAgent:
     """
     Creates the agent.
 
@@ -165,32 +168,52 @@ def create_replay_buffer(data_spec, batch_size: int, max_length: int) -> tf_unif
         data_spec=data_spec, batch_size=batch_size, max_length=max_length),
 
 
+@gin.configurable
+def no_decay(epsilon: float) -> float:
+    return epsilon
 
-@gin.configurable(blacklist=['train_step'])
-def decaying_epsilon(initial_epsilon: float,
-                     train_step: tf.Variable,
-                     decay_time: int,
-                     decay_type: Union[str, None] = 'exponential',
-                     reset_at_step: int = None) -> float:
+
+@gin.configurable(blacklist=['step'])
+def linear_decay(initial_epsilon: float,
+                 final_epsilon: float,
+                 step: tf.Variable,
+                 decay_time: int) -> float:
+    """
+    Linear decay from initial_epsilon to final_epsilon in the given decay_time as measured by step.
+    It is assumed that initial_epsilon > final_epsilon.
+    """
+    return initial_epsilon - (initial_epsilon - final_epsilon)*(step/decay_time)
+
+
+@gin.configurable(blacklist=['step'])
+def exponential_decay(initial_epsilon: float,
+                      step: tf.Variable,
+                      decay_time: int,
+                      reset_at_step: int = 0) -> float:
     # TODO Implementing an automatic reset of the decaying epsilon parameter? Something maybe that looks at the variance
     # of some performance metric(s) and decides based on that if it should reset the decay of epsilon or not
-    if reset_at_step:
-        # The reason why these two ifs are separated and not grouped in an *and* expression (using python short-circuit)
-        # is because this function might actually get optimized by tf.function since it's called inside the agent training function
-        # and I think short-circuiting doesn't work in graph mode.
-        if reset_at_step <= train_step:
-            # Notice that this doesn't change the train_step outside the scope of this function
-            # (which is the desired behaviour)
-            train_step = train_step - reset_at_step
+    if reset_at_step <= step:
+        # Notice that this doesn't change the train_step outside the scope of this function
+        # (which is the desired behaviour)
+        step = step - reset_at_step
+    
+    return (0.5 ** tf.cast((step // decay_time), tf.float32)) * initial_epsilon
+
+
+@gin.configurable(blacklist=['step'])
+def decaying_epsilon(step: tf.Variable,
+                     decay_type: str = 'exponential'
+                     ) -> float:
+
     if decay_type == 'exponential':
-        decay = 0.5**tf.cast((train_step // decay_time), tf.float32)
+        return partial(exponential_decay, step=step)
+    elif decay_type == 'linear':
+        return partial(linear_decay, step=step)
     elif decay_type == None:
-        decay = 1
+        return partial(no_decay)
     else:
         raise NotImplementedError(
-            'Only exponential decay and no decay are implmented for now.')
-
-    return initial_epsilon * decay
+            'decay_type requested is not implemented yet.')
 
 
 def observation_and_action_constraint_splitter(obs) -> Tuple:

@@ -143,12 +143,7 @@ def train_eval(
                                 dtype=tf.int64)
 
     # Epsilon implementing decaying behaviour for the two agents
-    decaying_epsilon = partial(utility.decaying_epsilon,
-                               initial_epsilon=initial_epsilon,
-                               train_step=epoch_counter,
-                               decay_type=decay_type,
-                               decay_time=decay_time,
-                               reset_at_step=reset_at_step)
+    decaying_epsilon = utility.decaying_epsilon(step=epoch_counter)
 
     """
 	TODO Performance Improvement: "When training on GPUs, make use of the TensorCore. GPU kernels use
