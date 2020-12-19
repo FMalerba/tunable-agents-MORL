@@ -3,7 +3,7 @@ from setuptools import find_packages
 
 
 setup(
-    name='tunable_agents_environment',
+    name='tunable_agents',
     version='0.0.1',
     description="Environment for tunable RL agents with non-linear utility functions.",
     author='Federico Malerba',

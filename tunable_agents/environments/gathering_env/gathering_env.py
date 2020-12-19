@@ -75,7 +75,7 @@ def create_obs_stacker(environment: py_environment.PyEnvironment, history_size: 
 
 
 @gin.configurable
-class Gathering_wrapper(py_environment.PyEnvironment):
+class GatheringWrapper(py_environment.PyEnvironment):
     def __init__(self, preference: np.ndarray = None,
                  gamma: float = 0.99, history_size: int = 3) -> None:
         super().__init__()

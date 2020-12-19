@@ -9,7 +9,8 @@ from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.utils import common
 from tf_agents.trajectories import time_step as ts
 from tf_agents.environments import tf_py_environment, py_environment
-
+from tunable_agents_environment.DST_env import DST_env
+from tunable_agents_environment.gathering_env import gathering_env
 import tensorflow as tf
 from tensorflow.keras.layers import InputLayer, Conv2D, Dropout, Flatten, Concatenate
 
@@ -64,7 +65,9 @@ def create_environment(game: str = 'DST') -> py_environment.PyEnvironment:
     A PyEnvironment object environment.
     """
     if game == 'DST':
-        return tunable_agents_environment.DST_wrapper()
+        return DST_env.DSTWrapper()
+    elif game == 'gathering':
+        return gathering_env.GatheringWrapper()
     raise NotImplementedError('Game is not among the implemented games')
 
 
@@ -197,7 +200,6 @@ def create_agent(
             td_errors_loss_fn=common.element_wise_squared_loss,
             gamma=gamma,
             reward_scale_factor=reward_scale_factor,
-            gradient_clipping=gradient_clipping,
             debug_summaries=debug_summaries,
             summarize_grads_and_vars=summarize_grads_and_vars,
             train_step_counter=train_step_counter)

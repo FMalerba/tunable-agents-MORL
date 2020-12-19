@@ -91,7 +91,7 @@ class DeepSeaTreasureEnvironment:
 
 
 @gin.configurable
-class DST_wrapper(py_environment.PyEnvironment):
+class DSTWrapper(py_environment.PyEnvironment):
     def __init__(self, gamma: float) -> None:
         super().__init__()
         self._env = DeepSeaTreasureEnvironment()

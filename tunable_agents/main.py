@@ -6,7 +6,7 @@ from absl import flags
 from absl import logging
 
 import gin
-from . import utility
+from tunable_agents import utility
 import tensorflow as tf
 from tf_agents.agents import tf_agent
 from tf_agents.drivers import dynamic_episode_driver
@@ -14,7 +14,6 @@ from tf_agents.environments import tf_py_environment
 from tf_agents.eval import metric_utils
 from tf_agents.metrics import tf_metrics
 from tf_agents.utils import common
-from functools import partial
 
 gpus = tf.config.experimental.list_physical_devices('GPU')
 tf.config.experimental.set_memory_growth(gpus[0], True)
