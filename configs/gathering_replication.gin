@@ -1,0 +1,49 @@
+# Experiment
+train_eval.experiment_name = 'gathering_replication' # Used to name the folder for logs/summaries/checkpoints
+train_eval.env_id = 'gathering_replication'
+
+# Agent.
+gamma = 0.99
+create_agent.agent_class = 'replication_study'
+create_agent.fc_layer_params = (512, 512)       # Not being used
+create_agent.learning_rate = 1e-4
+train_eval.num_steps = 2
+create_agent.gradient_clipping = 0.1            # Not being used
+create_agent.target_update_tau = 0.05
+create_agent.target_update_period = 5
+create_agent.gamma = %gamma
+create_agent.reward_scale_factor = 1.0
+create_agent.debug_summaries = False
+create_agent.summarize_grads_and_vars = False
+
+# Environment
+create_environment.game_type = 'gathering'
+GatheringWrapper.gamma = &gamma
+GatheringWrapper.history_size = 3
+
+# Replay Buffer
+create_replay_buffer.max_length = 50_000    # RB capacity
+
+# Decaying Epsilon for the Epsilon-Greedy policy
+decaying_epsilon.decay_type = 'linear'
+linear_decay.initial_epsilon = 1.0
+linear_decay.final_epsilon = 0.01
+linear_decay.decay_time = 50_000
+
+# Running and Training process
+initial_collection.collect_episodes = 50
+train_eval.num_iterations = 10_000
+train_eval.collect_episodes_per_epoch = 1
+train_eval.train_steps_per_epoch = 100
+train_eval.num_eval_episodes = 1000
+train_eval.batch_size = 32
+
+# Checkpointing and Evaluation
+train_eval.train_checkpoint_interval = 1000
+train_eval.policy_checkpoint_interval = 1000
+train_eval.rb_checkpoint_interval = 1000
+train_eval.eval_interval = 500
+
+
+
+
