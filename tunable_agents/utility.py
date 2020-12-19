@@ -9,8 +9,8 @@ from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.utils import common
 from tf_agents.trajectories import time_step as ts
 from tf_agents.environments import tf_py_environment, py_environment
-from tunable_agents_environment.DST_env import DST_env
-from tunable_agents_environment.gathering_env import gathering_env
+from tunable_agents.environments.DST_env import DST_env
+from tunable_agents.environments.gathering_env import gathering_env
 import tensorflow as tf
 from tensorflow.keras.layers import InputLayer, Conv2D, Dropout, Flatten, Concatenate
 

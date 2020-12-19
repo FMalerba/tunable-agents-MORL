@@ -1,4 +1,4 @@
-from tunable_agents_environment import utility_functions
+from tunable_agents.environments import utility_functions
 from tf_agents.environments import py_environment
 from tf_agents.specs import array_spec
 from tf_agents.trajectories import time_step as ts
