@@ -57,7 +57,7 @@ class ObservationStacker(object):
         return self._obs_stack.shape
 
 
-@gin.configurable(blacklist=['environment'])
+@gin.configurable(denylist=['environment'])
 def create_obs_stacker(environment: py_environment.PyEnvironment, history_size: int = 3):
     """Creates an observation stacker.
 

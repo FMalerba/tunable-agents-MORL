@@ -71,7 +71,7 @@ def create_environment(game: str = 'DST') -> py_environment.PyEnvironment:
     raise NotImplementedError('Game is not among the implemented games')
 
 
-@gin.configurable(blacklist=['environment', 'train_step_counter'])
+@gin.configurable(denylist=['environment', 'train_step_counter'])
 def create_agent(
         agent_class: str,
         environment: tf_py_environment.TFPyEnvironment,
@@ -208,7 +208,7 @@ def create_agent(
             'Expected valid agent_type, got {}'.format(agent_class))
 
 
-@gin.configurable(blacklist=['data_spec', 'batch_size'])
+@gin.configurable(denylist=['data_spec', 'batch_size'])
 def create_replay_buffer(data_spec, batch_size: int, max_length: int) -> tf_uniform_replay_buffer.TFUniformReplayBuffer:
     return tf_uniform_replay_buffer.TFUniformReplayBuffer(
         data_spec=data_spec, batch_size=batch_size, max_length=max_length),
@@ -219,7 +219,7 @@ def no_decay(epsilon: float) -> float:
     return epsilon
 
 
-@gin.configurable(blacklist=['step'])
+@gin.configurable(denylist=['step'])
 def linear_decay(initial_epsilon: float,
                  final_epsilon: float,
                  step: tf.Variable,
@@ -231,7 +231,7 @@ def linear_decay(initial_epsilon: float,
     return initial_epsilon - (initial_epsilon - final_epsilon)*(step/decay_time)
 
 
-@gin.configurable(blacklist=['step'])
+@gin.configurable(denylist=['step'])
 def exponential_decay(initial_epsilon: float,
                       step: tf.Variable,
                       decay_time: int,
@@ -246,7 +246,7 @@ def exponential_decay(initial_epsilon: float,
     return (0.5 ** tf.cast((step // decay_time), tf.float32)) * initial_epsilon
 
 
-@gin.configurable(blacklist=['step'])
+@gin.configurable(denylist=['step'])
 def decaying_epsilon(step: tf.Variable,
                      decay_type: str = 'exponential'
                      ) -> Callable[[], float]:
