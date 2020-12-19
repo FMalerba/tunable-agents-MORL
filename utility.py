@@ -1,4 +1,4 @@
-from typing import Callable, Tuple, Union
+from typing import Callable, Tuple
 import gin.tf
 from tf_agents.agents import tf_agent
 from tf_agents.agents.dqn import dqn_agent
@@ -11,6 +11,7 @@ from tf_agents.trajectories import time_step as ts
 from tf_agents.environments import tf_py_environment, py_environment
 
 import tensorflow as tf
+from tensorflow.keras.layers import InputLayer, Conv2D, Dropout, Flatten, Concatenate
 
 from functools import partial
 
@@ -27,6 +28,29 @@ def load_gin_configs(gin_files, gin_bindings):
     gin.parse_config_files_and_bindings(gin_files,
                                         bindings=gin_bindings,
                                         skip_unknown=False)
+
+
+def gathering_replication_agent_qnetwork(obs_spec, action_spec) -> q_network.QNetwork:
+    model = tf.keras.Sequential(name='image_encoder')
+    model.add(Conv2D(256, (3, 3), activation='relu', name='myconv'))
+    model.add(Dropout(0.2, name='mydrop'))
+    model.add(Conv2D(256, (3, 3), activation='relu', name='myconv2'))
+    model.add(Dropout(0.2, name='mydrop2'))
+    model.add(Flatten())
+
+    preprocessing_layers = {'observations': model,
+                            'preference_weights': InputLayer(input_shape=tf.TensorShape((6,)), name='PrefInput')}
+    
+    preprocessing_combiner = Concatenate()
+    
+    q_net = q_network.QNetwork(
+                    obs_spec,
+                    action_spec,
+                    preprocessing_layers=preprocessing_layers,
+                    preprocessing_combiner=preprocessing_combiner,
+                    fc_layer_params=(64, 64),
+                    dropout_layer_params=[0.2, 0.2])
+    return q_net
 
 
 @gin.configurable
@@ -157,6 +181,26 @@ def create_agent(
             debug_summaries=debug_summaries,
             summarize_grads_and_vars=summarize_grads_and_vars,
             train_step_counter=train_step_counter)
+    elif agent_class == 'replication_study':
+        q_net = gathering_replication_agent_qnetwork(environment.time_step_spec().observation,
+                                                     environment.action_spec())
+        
+        return dqn_agent.DqnAgent(
+            environment.time_step_spec(),
+            environment.action_spec(),
+            q_network=q_net,
+            optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
+            epsilon_greedy=decaying_epsilon,
+            n_step_update=n_step_update,
+            target_update_tau=target_update_tau,
+            target_update_period=target_update_period,
+            td_errors_loss_fn=common.element_wise_squared_loss,
+            gamma=gamma,
+            reward_scale_factor=reward_scale_factor,
+            gradient_clipping=gradient_clipping,
+            debug_summaries=debug_summaries,
+            summarize_grads_and_vars=summarize_grads_and_vars,
+            train_step_counter=train_step_counter)
     else:
         raise ValueError(
             'Expected valid agent_type, got {}'.format(agent_class))
@@ -203,7 +247,7 @@ def exponential_decay(initial_epsilon: float,
 @gin.configurable(blacklist=['step'])
 def decaying_epsilon(step: tf.Variable,
                      decay_type: str = 'exponential'
-                     ) -> float:
+                     ) -> Callable[[], float]:
 
     if decay_type == 'exponential':
         return partial(exponential_decay, step=step)
