@@ -110,7 +110,7 @@ class GatheringWrapper(py_environment.PyEnvironment):
             obs = self._env.reset()
         
         self._obs_stacker.reset_stack()
-        self._obs_stacker.add_observation(obs)
+        self._obs_stacker.add_observation(obs/255)      # Normalizing obs in range [0, 1]
         stacked_obs = self._obs_stacker.get_observation_stack()
         
         observations_and_preferences = {'observations': stacked_obs,
@@ -124,7 +124,7 @@ class GatheringWrapper(py_environment.PyEnvironment):
         
         obs, rewards, done, _ = self._env.step(action)
         
-        self._obs_stacker.add_observation(obs)
+        self._obs_stacker.add_observation(obs/255)      # Normalizing obs in range [0, 1]
         stacked_obs = self._obs_stacker.get_observation_stack()
         
         # Preferences are in range [-20, 20] we normalize them to the range [-0.5, 0.5]
