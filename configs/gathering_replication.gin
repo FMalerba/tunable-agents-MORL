@@ -1,6 +1,6 @@
 # Experiment
-train_eval.experiment_name = 'gathering_replication' # Used to name the folder for logs/summaries/checkpoints
-train_eval.env_id = 'gathering_replication'
+#train_eval.experiment_name = 'gathering_replication' # Used to name the folder for logs/summaries/checkpoints
+#train_eval.env_id = 'gathering_replication'
 
 # Agent.
 gamma = 0.99
@@ -17,8 +17,8 @@ create_agent.debug_summaries = False
 create_agent.summarize_grads_and_vars = False
 
 # Environment
-create_environment.game_type = 'gathering'
-GatheringWrapper.gamma = &gamma
+create_environment.game = 'gathering'
+GatheringWrapper.gamma = %gamma
 GatheringWrapper.history_size = 3
 
 # Replay Buffer

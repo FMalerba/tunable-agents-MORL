@@ -187,7 +187,6 @@ def create_agent(
     elif agent_class == 'replication_study':
         q_net = gathering_replication_agent_qnetwork(environment.time_step_spec().observation,
                                                      environment.action_spec())
-        
         return dqn_agent.DqnAgent(
             environment.time_step_spec(),
             environment.action_spec(),
@@ -211,7 +210,7 @@ def create_agent(
 @gin.configurable(denylist=['data_spec', 'batch_size'])
 def create_replay_buffer(data_spec, batch_size: int, max_length: int) -> tf_uniform_replay_buffer.TFUniformReplayBuffer:
     return tf_uniform_replay_buffer.TFUniformReplayBuffer(
-        data_spec=data_spec, batch_size=batch_size, max_length=max_length),
+        data_spec=data_spec, batch_size=batch_size, max_length=max_length)
 
 
 @gin.configurable
@@ -228,7 +227,7 @@ def linear_decay(initial_epsilon: float,
     Linear decay from initial_epsilon to final_epsilon in the given decay_time as measured by step.
     It is assumed that initial_epsilon > final_epsilon.
     """
-    return initial_epsilon - (initial_epsilon - final_epsilon)*(step/decay_time)
+    return tf.cast(initial_epsilon - (initial_epsilon - final_epsilon)*(step/decay_time), dtype=tf.float32)
 
 
 @gin.configurable(denylist=['step'])

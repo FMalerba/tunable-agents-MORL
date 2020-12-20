@@ -28,7 +28,7 @@ class ObservationStacker(object):
         """
         self._history_size = history_size
         self._observation_shape = observation_shape
-        self._obs_stack : np.ndarray = np.zeros(shape=(*observation_shape[:-1], observation_shape[-1]*history_size))
+        self._obs_stack : np.ndarray = np.zeros(shape=(*observation_shape[:-1], observation_shape[-1]*history_size), dtype=np.float32)
 
     def add_observation(self, observation: np.ndarray):
         """Adds observation for the current player.
@@ -62,7 +62,7 @@ def create_obs_stacker(environment: py_environment.PyEnvironment, history_size: 
     """Creates an observation stacker.
 
     Args:
-      environment: environment object.
+      environment: Gathering object.
       history_size: int, number of steps to stack.
 
     Returns:
@@ -70,7 +70,7 @@ def create_obs_stacker(environment: py_environment.PyEnvironment, history_size: 
     """
 
     return ObservationStacker(history_size,
-                              environment.observation_spec()['observations'].shape())
+                              environment.single_obs_shape())
 
 
 
@@ -91,11 +91,15 @@ class GatheringWrapper(py_environment.PyEnvironment):
     
     
     def observation_spec(self) -> types.NestedArraySpec:
-        return self._observation_spec()
+        return self._observation_spec
     
     
     def action_spec(self) -> types.NestedArraySpec:
-        return self._action_spec()
+        return self._action_spec
+    
+    
+    def single_obs_shape(self) -> Tuple[int]:
+        return (8,8,3)
     
     
     def _reset(self) -> ts.TimeStep:
@@ -118,7 +122,7 @@ class GatheringWrapper(py_environment.PyEnvironment):
         if self._current_time_step.is_last():
             return self.reset()
         
-        obs, rewards, done = self._env.step(action)
+        obs, rewards, done, _ = self._env.step(action)
         
         self._obs_stacker.add_observation(obs)
         stacked_obs = self._obs_stacker.get_observation_stack()
