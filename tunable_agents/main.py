@@ -21,6 +21,7 @@ tf.config.experimental.set_memory_growth(gpus[0], True)
 
 flags.DEFINE_string('root_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
                     'Root directory for writing logs/summaries/checkpoints.')
+flags.DEFINE_bool('XLA_flag', True, "Whether to use XLA or not. Can't be True when running on Windows")
 flags.DEFINE_multi_string(
     'gin_files', [], 'List of paths to gin configuration files (e.g.'
     '"configs/hanabi_rainbow.gin").')
@@ -83,6 +84,7 @@ def train_eval(
     train_checkpoint_interval: int,
     policy_checkpoint_interval: int,
     rb_checkpoint_interval: int,
+    XLA_flag: bool = True
 ):
     """A simple train and eval for DQN."""
     root_dir = os.path.expanduser(root_dir)
@@ -222,7 +224,7 @@ def train_eval(
     # Compiled version of training functions (much faster)
     agent_train_function = common.function(tf_agent.train)
 
-    tf.config.optimizer.set_jit(True)       # Care that JIT only improves performance idf stuff doesn't change shapes often
+    tf.config.optimizer.set_jit(XLA_flag)       # Care that JIT only improves performance idf stuff doesn't change shapes often
     
     initial_collection(tf_agent, tf_env, replay_observer)
     
@@ -335,7 +337,7 @@ def train_eval(
 def main(_):
     logging.set_verbosity(logging.INFO)
     utility.load_gin_configs(FLAGS.gin_files, FLAGS.gin_bindings)
-    train_eval(root_dir=FLAGS.root_dir,)
+    train_eval(root_dir=FLAGS.root_dir, XLA_flag=FLAGS.XLA_flag)
 
 
 if __name__ == '__main__':
