@@ -1,4 +1,4 @@
-from tunable_agents_environment import utility_functions
+from tunable_agents.environments import utility_functions
 from tf_agents.environments import py_environment
 from tf_agents.specs import array_spec
 from tf_agents.trajectories import time_step as ts
@@ -6,7 +6,7 @@ import gin.tf
 
 from tf_agents.typing import types
 from collections.abc import Callable
-from typing import Tuple, List, Union
+from typing import Tuple, List
 
 import numpy as np
 
@@ -91,7 +91,7 @@ class DeepSeaTreasureEnvironment:
 
 
 @gin.configurable
-class DST_wrapper(py_environment.PyEnvironment):
+class DSTWrapper(py_environment.PyEnvironment):
     def __init__(self, gamma: float) -> None:
         super().__init__()
         self._env = DeepSeaTreasureEnvironment()
@@ -102,11 +102,11 @@ class DST_wrapper(py_environment.PyEnvironment):
     
     
     def observation_spec(self) -> types.NestedArraySpec:
-        return self._observation_spec()
+        return self._observation_spec
     
     
     def action_spec(self) -> types.NestedArraySpec:
-        return self._action_spec()
+        return self._action_spec
     
     
     def _reset(self) -> ts.TimeStep:

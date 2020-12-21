@@ -7,7 +7,7 @@ from absl import flags
 from absl import logging
 
 import gin
-from . import utility
+from tunable_agents import utility
 import tensorflow as tf
 from tf_agents.agents import tf_agent
 from tf_agents.drivers import dynamic_episode_driver
@@ -77,11 +77,6 @@ def train_eval(
     collect_episodes_per_epoch: int,
     # Number of steps for training update
     num_steps: int,
-    # Params for decaying Epsilon
-    initial_epsilon: float,
-    decay_type: str,
-    decay_time: int,
-    reset_at_step: int,
     # Params for train
     train_steps_per_epoch: int,
     batch_size: int,
@@ -159,7 +154,7 @@ def train_eval(
         n_step_update=num_steps - 1,  
         decaying_epsilon=decaying_epsilon,
         train_step_counter=train_step)
-
+    
     # replay buffer
     replay_buffer = utility.create_replay_buffer(data_spec=tf_agent.collect_data_spec,
                                                  batch_size=tf_env.batch_size)
