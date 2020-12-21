@@ -183,7 +183,7 @@ def linear_decay(initial_epsilon: float,
     Linear decay from initial_epsilon to final_epsilon in the given decay_time as measured by step.
     It is assumed that initial_epsilon > final_epsilon.
     """
-    return tf.cast(initial_epsilon - (initial_epsilon - final_epsilon)*(step/decay_time), dtype=tf.float32)
+    return tf.cast(tf.maximum(initial_epsilon - (initial_epsilon - final_epsilon)*(step/decay_time), final_epsilon), dtype=tf.float32)
 
 
 @gin.configurable(denylist=['step'])
