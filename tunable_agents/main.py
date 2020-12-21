@@ -72,7 +72,7 @@ def train_eval(
     num_iterations: int,
     # Params for collect
     collect_episodes_per_epoch: int,
-    # Number of steps for training update
+    # Number of steps per single training update
     num_steps: int,
     # Params for train
     train_steps_per_epoch: int,

@@ -75,21 +75,10 @@ def create_environment(game: str = 'DST') -> py_environment.PyEnvironment:
 def create_agent(
         agent_class: str,
         environment: tf_py_environment.TFPyEnvironment,
-        fc_layer_params: Tuple[int],
         learning_rate: float,
         decaying_epsilon: Callable[[], float],
         n_step_update: int,
-        target_update_tau: float,
-        target_update_period: int,
-        gamma: float,
-        reward_scale_factor: float,
-        gradient_clipping: float,
-        debug_summaries: bool,
-        summarize_grads_and_vars: bool,
-        train_step_counter: tf.Variable,
-        num_atoms: int = None,      # Only for categorical_dqn
-        min_q_value: float = None,  # Only for categorical_dqn
-        max_q_value: float = None,  # Only for categorical_dqn
+        train_step_counter: tf.Variable
 ) -> tf_agent.TFAgent:
     """
     Creates the agent.
@@ -121,21 +110,13 @@ def create_agent(
             environment.action_spec(),
             q_network=q_network.QNetwork(
                 environment.time_step_spec().observation['observations'],
-                environment.action_spec(),
-                fc_layer_params=fc_layer_params),
+                environment.action_spec()),
             optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
             observation_and_action_constraint_splitter=
             observation_and_action_constraint_splitter,
             epsilon_greedy=decaying_epsilon,
             n_step_update=n_step_update,
-            target_update_tau=target_update_tau,
-            target_update_period=target_update_period,
             td_errors_loss_fn=common.element_wise_squared_loss,
-            gamma=gamma,
-            reward_scale_factor=reward_scale_factor,
-            gradient_clipping=gradient_clipping,
-            debug_summaries=debug_summaries,
-            summarize_grads_and_vars=summarize_grads_and_vars,
             train_step_counter=train_step_counter)
     elif agent_class == 'DDQN':
         return dqn_agent.DdqnAgent(
@@ -143,21 +124,13 @@ def create_agent(
             environment.action_spec(),
             q_network=q_network.QNetwork(
                 environment.time_step_spec().observation['observations'],
-                environment.action_spec(),
-                fc_layer_params=fc_layer_params),
+                environment.action_spec()),
             optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
             observation_and_action_constraint_splitter=
             observation_and_action_constraint_splitter,
             epsilon_greedy=decaying_epsilon,
             n_step_update=n_step_update,
-            target_update_tau=target_update_tau,
-            target_update_period=target_update_period,
             td_errors_loss_fn=common.element_wise_squared_loss,
-            gamma=gamma,
-            reward_scale_factor=reward_scale_factor,
-            gradient_clipping=gradient_clipping,
-            debug_summaries=debug_summaries,
-            summarize_grads_and_vars=summarize_grads_and_vars,
             train_step_counter=train_step_counter)
     elif agent_class == 'categorical_dqn':
         return categorical_dqn_agent.CategoricalDqnAgent(
@@ -165,24 +138,13 @@ def create_agent(
             environment.action_spec(),
             categorical_q_network=categorical_q_network.CategoricalQNetwork(
                 environment.time_step_spec().observation['observations'],
-                environment.action_spec(),
-                num_atoms=num_atoms,
-                fc_layer_params=fc_layer_params),
+                environment.action_spec()),
             optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
             observation_and_action_constraint_splitter=
             observation_and_action_constraint_splitter,
             epsilon_greedy=decaying_epsilon,
             n_step_update=n_step_update,
-            target_update_tau=target_update_tau,
-            target_update_period=target_update_period,
-            min_q_value=min_q_value,
-            max_q_value=max_q_value,
             td_errors_loss_fn=common.element_wise_squared_loss,
-            gamma=gamma,
-            reward_scale_factor=reward_scale_factor,
-            gradient_clipping=gradient_clipping,
-            debug_summaries=debug_summaries,
-            summarize_grads_and_vars=summarize_grads_and_vars,
             train_step_counter=train_step_counter)
     elif agent_class == 'replication_study':
         q_net = gathering_replication_agent_qnetwork(environment.time_step_spec().observation,
@@ -194,13 +156,7 @@ def create_agent(
             optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
             epsilon_greedy=decaying_epsilon,
             n_step_update=n_step_update,
-            target_update_tau=target_update_tau,
-            target_update_period=target_update_period,
             td_errors_loss_fn=common.element_wise_squared_loss,
-            gamma=gamma,
-            reward_scale_factor=reward_scale_factor,
-            debug_summaries=debug_summaries,
-            summarize_grads_and_vars=summarize_grads_and_vars,
             train_step_counter=train_step_counter)
     else:
         raise ValueError(
