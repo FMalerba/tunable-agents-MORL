@@ -1,4 +1,4 @@
-from typing import Callable, Tuple
+from typing import Callable, List, Tuple
 import gin.tf
 from tf_agents.agents import tf_agent
 from tf_agents.agents.dqn import dqn_agent
@@ -11,11 +11,14 @@ from tf_agents.trajectories import time_step as ts
 from tf_agents.environments import tf_py_environment, py_environment
 from tunable_agents.environments.DST_env import DST_env
 from tunable_agents.environments.gathering_env import gathering_env
+from tunable_agents import external_configurables
 import tensorflow as tf
 from tensorflow.keras.layers import InputLayer, Conv2D, Dropout, Flatten, Concatenate
 
 from functools import partial
 
+LayerName = str
+LayerArgs = dict
 
 def load_gin_configs(gin_files, gin_bindings):
     """Loads gin configuration files.
@@ -52,6 +55,11 @@ def gathering_replication_agent_qnetwork(obs_spec, action_spec) -> q_network.QNe
                     fc_layer_params=(64, 64),
                     dropout_layer_params=[0.2, 0.2])
     return q_net
+
+@gin.configurable
+def create_preprocessing(layers: List[Tuple[LayerName, LayerArgs]]):
+    
+    return 
 
 
 @gin.configurable
