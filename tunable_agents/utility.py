@@ -1,4 +1,4 @@
-from typing import Callable, Tuple
+from typing import Callable, List, Tuple, Union
 import gin.tf
 from tf_agents.agents import tf_agent
 from tf_agents.agents.dqn import dqn_agent
@@ -8,13 +8,17 @@ from tf_agents.networks import q_network
 from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.utils import common
 from tf_agents.trajectories import time_step as ts
+from tf_agents.typing import types
 from tf_agents.environments import tf_py_environment, py_environment
 from tunable_agents.environments.DST_env import DST_env
 from tunable_agents.environments.gathering_env import gathering_env
+from tunable_agents import external_configurables
 import tensorflow as tf
 from tensorflow.keras.layers import InputLayer, Conv2D, Dropout, Flatten, Concatenate
+from tensorflow.python.keras.engine.sequential import Sequential
 
 from functools import partial
+
 
 
 def load_gin_configs(gin_files, gin_bindings):
@@ -31,27 +35,24 @@ def load_gin_configs(gin_files, gin_bindings):
                                         skip_unknown=False)
 
 
-def gathering_replication_agent_qnetwork(obs_spec, action_spec) -> q_network.QNetwork:
-    model = tf.keras.Sequential(name='image_encoder')
-    model.add(Conv2D(256, (3, 3), activation='relu', name='myconv'))
-    model.add(Dropout(0.2, name='mydrop'))
-    model.add(Conv2D(256, (3, 3), activation='relu', name='myconv2'))
-    model.add(Dropout(0.2, name='mydrop2'))
-    model.add(Flatten())
+@gin.configurable
+def create_preprocessing(**kwargs) -> Sequential:
+    return Sequential(**kwargs)
 
-    preprocessing_layers = {'observations': model,
+
+@gin.configurable
+def create_qnet(obs_spec: types.Spec, action_spec: types.Spec)  -> q_network.QNetwork:
+    preprocessing_model = create_preprocessing()
+    preprocessing_layers = {'observations': preprocessing_model,
                             'preference_weights': InputLayer(input_shape=tf.TensorShape((6,)), name='PrefInput')}
     
     preprocessing_combiner = Concatenate()
     
-    q_net = q_network.QNetwork(
+    return q_network.QNetwork(
                     obs_spec,
                     action_spec,
                     preprocessing_layers=preprocessing_layers,
-                    preprocessing_combiner=preprocessing_combiner,
-                    fc_layer_params=(64, 64),
-                    dropout_layer_params=[0.2, 0.2])
-    return q_net
+                    preprocessing_combiner=preprocessing_combiner)
 
 
 @gin.configurable
@@ -147,8 +148,8 @@ def create_agent(
             td_errors_loss_fn=common.element_wise_squared_loss,
             train_step_counter=train_step_counter)
     elif agent_class == 'replication_study':
-        q_net = gathering_replication_agent_qnetwork(environment.time_step_spec().observation,
-                                                     environment.action_spec())
+        q_net = create_qnet(environment.time_step_spec().observation,
+                            environment.action_spec())
         return dqn_agent.DqnAgent(
             environment.time_step_spec(),
             environment.action_spec(),
