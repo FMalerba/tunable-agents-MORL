@@ -18,20 +18,16 @@ from tf_agents.utils import common
 gpus = tf.config.experimental.list_physical_devices('GPU')
 tf.config.experimental.set_memory_growth(gpus[0], True)
 
-
 flags.DEFINE_string('root_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
                     'Root directory for writing logs/summaries/checkpoints.')
 flags.DEFINE_bool('XLA_flag', True, "Whether to use XLA or not. Can't be True when running on Windows")
+flags.DEFINE_multi_string('gin_files', [], 'List of paths to gin configuration files (e.g.'
+                          '"configs/hanabi_rainbow.gin").')
 flags.DEFINE_multi_string(
-    'gin_files', [], 'List of paths to gin configuration files (e.g.'
-    '"configs/hanabi_rainbow.gin").')
-flags.DEFINE_multi_string(
-    'gin_bindings', [],
-    'Gin bindings to override the values set in the config files '
+    'gin_bindings', [], 'Gin bindings to override the values set in the config files '
     '(e.g. "train_eval.num_iterations=100").')
 
 FLAGS = flags.FLAGS
-
 
 
 def run_verbose_mode(agent_1, agent_2):
@@ -44,10 +40,8 @@ def run_verbose_mode(agent_1, agent_2):
     state = tf.env.reset()
 
 
-@gin.configurable(whitelist=['collect_episodes'])
-def initial_collection(agent: tf_agent.TFAgent,
-                       env: tf_py_environment.TFPyEnvironment,
-                       rb_observer: list,
+@gin.configurable(allowlist=['collect_episodes'])
+def initial_collection(agent: tf_agent.TFAgent, env: tf_py_environment.TFPyEnvironment, rb_observer: list,
                        collect_episodes: int) -> None:
     """
     Samples transitions with the given agent and environment without training
@@ -57,35 +51,33 @@ def initial_collection(agent: tf_agent.TFAgent,
         collect_policy = agent.collect_policy
         print('Sampling {} episodes with no training'.format(collect_episodes))
         start_time = time.time()
-        dynamic_episode_driver.DynamicEpisodeDriver(
-            env, collect_policy,
-            observers=rb_observer,
-            num_episodes=collect_episodes).run()
-        print(
-            'Finished sampling with the Driver, it took {} seconds for {} episodes\n'.
-            format(time.time() - start_time, collect_episodes))
+        dynamic_episode_driver.DynamicEpisodeDriver(env,
+                                                    collect_policy,
+                                                    observers=rb_observer,
+                                                    num_episodes=collect_episodes).run()
+        print('Finished sampling with the Driver, it took {} seconds for {} episodes\n'.format(
+            time.time() - start_time, collect_episodes))
 
 
 @gin.configurable
 def train_eval(
-    root_dir: str,
-    num_iterations: int,
-    # Params for collect
-    collect_episodes_per_epoch: int,
-    # Number of steps per single training update
-    num_steps: int,
-    # Params for train
-    train_steps_per_epoch: int,
-    batch_size: int,
-    # Params for eval
-    eval_interval: int,
-    num_eval_episodes: int,
-    # Params for checkpoints, summaries, and logging
-    train_checkpoint_interval: int,
-    policy_checkpoint_interval: int,
-    rb_checkpoint_interval: int,
-    XLA_flag: bool = True
-):
+        root_dir: str,
+        num_iterations: int,
+        # Params for collect
+        collect_episodes_per_epoch: int,
+        # Number of steps per single training update
+        num_steps: int,
+        # Params for train
+        train_steps_per_epoch: int,
+        batch_size: int,
+        # Params for eval
+        eval_interval: int,
+        num_eval_episodes: int,
+        # Params for checkpoints, summaries, and logging
+        train_checkpoint_interval: int,
+        policy_checkpoint_interval: int,
+        rb_checkpoint_interval: int,
+        XLA_flag: bool = True):
     """A simple train and eval for DQN."""
     root_dir = os.path.expanduser(root_dir)
     train_dir = os.path.join(root_dir, 'train')
@@ -96,13 +88,11 @@ def train_eval(
 		from the last saved checkpoint; then tensorboard  will receive (and display) twice the summaries 
 		relative to the epochs that had been executed, but not checkpointed. How to solve this? No idea. 
 	"""
-    train_summary_writer = tf.summary.create_file_writer(
-        train_dir, flush_millis=10000)
+    train_summary_writer = tf.summary.create_file_writer(train_dir, flush_millis=10000)
 
     train_summary_writer.set_as_default()
 
-    eval_summary_writer = tf.summary.create_file_writer(
-        eval_dir, flush_millis=10000)
+    eval_summary_writer = tf.summary.create_file_writer(eval_dir, flush_millis=10000)
 
     tf.profiler.experimental.server.start(6009)
     """
@@ -123,22 +113,14 @@ def train_eval(
     # create the enviroment
     env = utility.create_environment()
     tf_env = tf_py_environment.TFPyEnvironment(env)
-    eval_py_env = tf_py_environment.TFPyEnvironment(
-        utility.create_environment())
+    eval_py_env = tf_py_environment.TFPyEnvironment(utility.create_environment())
 
-    train_step = tf.Variable(0,
-                             trainable=False,
-                             name='global_step',
-                             dtype=tf.int64)
+    train_step = tf.Variable(0, trainable=False, name='global_step', dtype=tf.int64)
 
-    epoch_counter = tf.Variable(0,
-                                trainable=False,
-                                name='Epoch',
-                                dtype=tf.int64)
+    epoch_counter = tf.Variable(0, trainable=False, name='Epoch', dtype=tf.int64)
 
     # Epsilon implementing decaying behaviour for the two agents
     decaying_epsilon = utility.decaying_epsilon(step=epoch_counter)
-
     """
 	TODO Performance Improvement: "When training on GPUs, make use of the TensorCore. GPU kernels use
 		the TensorCore when the precision is fp16 and input/output dimensions are divisible by 8 or 16 (for int8)"
@@ -152,10 +134,10 @@ def train_eval(
     tf_agent = utility.create_agent(
         environment=tf_env,
         # num_steps parameter must differ by 1 between agent and replay_buffer.as_dataset() call
-        n_step_update=num_steps - 1,  
+        n_step_update=num_steps - 1,
         decaying_epsilon=decaying_epsilon,
         train_step_counter=train_step)
-    
+
     # replay buffer
     replay_buffer = utility.create_replay_buffer(data_spec=tf_agent.collect_data_spec,
                                                  batch_size=tf_env.batch_size)
@@ -164,10 +146,8 @@ def train_eval(
     train_metrics = [
         tf_metrics.NumberOfEpisodes(),
         tf_metrics.EnvironmentSteps(),
-        tf_metrics.AverageReturnMetric(
-            buffer_size=collect_episodes_per_epoch),
-        tf_metrics.AverageEpisodeLengthMetric(
-            buffer_size=collect_episodes_per_epoch),
+        tf_metrics.AverageReturnMetric(buffer_size=collect_episodes_per_epoch),
+        tf_metrics.AverageEpisodeLengthMetric(buffer_size=collect_episodes_per_epoch),
     ]
 
     # replay buffer update for the driver
@@ -177,16 +157,16 @@ def train_eval(
         tf_metrics.AverageReturnMetric(buffer_size=num_eval_episodes),
         tf_metrics.AverageEpisodeLengthMetric(buffer_size=num_eval_episodes),
     ]
-    
+
     # I create the Driver only once instead of recreating it at the start of every epoch
     # This is not a problem only because the agent's collect_policy has the agent's network
     # and its tensors will update together with the agent's on agent.train() calls.
     # If the agent is has a policy that doesn't depend only on Tensors, one must recreate a new
     # policy after every epoch and create a new Driver to feed this to.
-    collect_driver = dynamic_episode_driver.DynamicEpisodeDriver(
-        tf_env, tf_agent.collect_policy,
-        observers=replay_observer + train_metrics,
-        num_episodes=collect_episodes_per_epoch)
+    collect_driver = dynamic_episode_driver.DynamicEpisodeDriver(tf_env,
+                                                                 tf_agent.collect_policy,
+                                                                 observers=replay_observer + train_metrics,
+                                                                 num_episodes=collect_episodes_per_epoch)
 
     # checkpointer:
     train_checkpointer = common.Checkpointer(ckpt_dir=train_dir,
@@ -194,8 +174,7 @@ def train_eval(
                                              train_step=train_step,
                                              epoch_counter=epoch_counter,
                                              metrics=metric_utils.MetricsGroup(
-                                                 train_metrics,
-                                                 'train_metrics'))
+                                                 train_metrics, 'train_metrics'))
 
     policy_checkpointer = common.Checkpointer(ckpt_dir=os.path.join(train_dir, 'policy'),
                                               policy=tf_agent.policy)
@@ -224,22 +203,20 @@ def train_eval(
     # Compiled version of training functions (much faster)
     agent_train_function = common.function(tf_agent.train)
 
-    tf.config.optimizer.set_jit(XLA_flag)       # Care that JIT only improves performance idf stuff doesn't change shapes often
-    
+    # Care that JIT only improves performance if stuff doesn't change shapes often
+    tf.config.optimizer.set_jit(XLA_flag)
+
     initial_collection(tf_agent, tf_env, replay_observer)
-    
+
     for _ in range(num_iterations):
         print('EPOCH {}'.format(epoch_counter.numpy()))
-        tf.summary.scalar(name='Epsilon',
-                          data=decaying_epsilon(),
-                          step=epoch_counter)
+        tf.summary.scalar(name='Epsilon', data=decaying_epsilon(), step=epoch_counter)
         # episode driver
         print('\nStarting to run the Driver')
         start_time = time.time()
         collect_driver.run()
-        print(
-            'Finished running the Driver, it took {} seconds for {} episodes\n'.
-            format(time.time() - start_time, collect_episodes_per_epoch))
+        print('Finished running the Driver, it took {} seconds for {} episodes\n'.format(
+            time.time() - start_time, collect_episodes_per_epoch))
         """
 		TODO Performance Optimization: Try out different batch sizes (TF usually recommends higher batch size) and see how this influences
 			performance, keeping track of possible differences in RAM/VRAM requirements. To do this properly the variable train_steps_per_epoch
@@ -259,13 +236,10 @@ def train_eval(
 		"""
         # Dataset generates trajectories with shape [Bx2x...]
         dataset = replay_buffer.as_dataset(
-            num_parallel_calls=3,
-            sample_batch_size=batch_size,
-            num_steps=num_steps).prefetch(
-                buffer_size=tf.data.experimental.AUTOTUNE)
+            num_parallel_calls=3, sample_batch_size=batch_size,
+            num_steps=num_steps).prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
-        print('Starting partial training of Agent from Replay Buffer'
-              '\nCounting Steps:')
+        print('Starting partial training of Agent from Replay Buffer' '\nCounting Steps:')
         # Commenting out losses_1/_2 (and all their relevant code) to try and see if they are responsible for an observed memory leak.
         # No feedback available yet on whether this is the case or not
         # losses = tf.TensorArray(tf.float32, size=train_steps_per_epoch)
@@ -274,8 +248,7 @@ def train_eval(
         for data in dataset:
             if c % (train_steps_per_epoch / 10) == 0 and c != 0:
                 #tf.summary.scalar("loss_agent", tf.math.reduce_mean(losses.stack()), step=train_step)
-                print("{}% completed with {} steps done".format(
-                    int(c / train_steps_per_epoch * 100), c))
+                print("{}% completed with {} steps done".format(int(c / train_steps_per_epoch * 100), c))
             if c == train_steps_per_epoch:
                 break
             experience, data_info = data
@@ -295,14 +268,12 @@ def train_eval(
             c += 1
 
         # losses = losses.stack()
-        print("Ended epoch training for agent, it took {}".format(
-            time.time() - start_time))
+        print("Ended epoch training for agent, it took {}".format(time.time() - start_time))
 
         epoch_counter.assign_add(1)
 
         for train_metric in train_metrics:
-            train_metric.tf_summaries(train_step=epoch_counter,
-                                      step_metrics=train_metrics[:2])
+            train_metric.tf_summaries(train_step=epoch_counter, step_metrics=train_metrics[:2])
 
         train_metrics[2].reset()
         train_metrics[3].reset()

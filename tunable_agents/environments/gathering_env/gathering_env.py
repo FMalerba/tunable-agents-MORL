@@ -11,7 +11,6 @@ from tf_agents.typing import types
 import numpy as np
 
 
-
 class ObservationStacker(object):
     """
     Class for stacking agent observations.
@@ -28,7 +27,9 @@ class ObservationStacker(object):
         """
         self._history_size = history_size
         self._observation_shape = observation_shape
-        self._obs_stack : np.ndarray = np.zeros(shape=(*observation_shape[:-1], observation_shape[-1]*history_size), dtype=np.float32)
+        self._obs_stack: np.ndarray = np.zeros(shape=(*observation_shape[:-1],
+                                                      observation_shape[-1] * history_size),
+                                               dtype=np.float32)
 
     def add_observation(self, observation: np.ndarray):
         """Adds observation for the current player.
@@ -69,15 +70,13 @@ def create_obs_stacker(environment: py_environment.PyEnvironment, history_size: 
       An observation stacker object.
     """
 
-    return ObservationStacker(history_size,
-                              environment.single_obs_shape())
-
+    return ObservationStacker(history_size, environment.single_obs_shape())
 
 
 @gin.configurable
 class GatheringWrapper(py_environment.PyEnvironment):
-    def __init__(self, preference: np.ndarray = None,
-                 gamma: float = 0.99, history_size: int = 3) -> None:
+
+    def __init__(self, preference: np.ndarray = None, gamma: float = 0.99, history_size: int = 3) -> None:
         super().__init__()
         # If a preference is passed to the environment, then such preference is fixed and won't be resampled
         self._fixed_preference = bool(preference)
@@ -85,55 +84,57 @@ class GatheringWrapper(py_environment.PyEnvironment):
         self._env = mo_gathering_env.MOGatheringEnv()
         self.gamma = gamma
         self._obs_stacker = create_obs_stacker(self, history_size=history_size)
-        self._observation_spec = {'observations': array_spec.ArraySpec(shape=self._obs_stacker.observation_shape(), dtype=np.float32),
-                                  'preference_weights': array_spec.ArraySpec(shape=(6,), dtype=np.float32)}
+        self._observation_spec = {
+            'observations':
+                array_spec.ArraySpec(shape=self._obs_stacker.observation_shape(), dtype=np.float32),
+            'preference_weights':
+                array_spec.ArraySpec(shape=(6,), dtype=np.float32)
+        }
         self._action_spec = array_spec.BoundedArraySpec(shape=(), dtype=np.int_, minimum=0, maximum=4)
-    
-    
+
     def observation_spec(self) -> types.NestedArraySpec:
         return self._observation_spec
-    
-    
+
     def action_spec(self) -> types.NestedArraySpec:
         return self._action_spec
-    
-    
+
     def single_obs_shape(self) -> Tuple[int]:
-        return (8,8,3)
-    
-    
+        return (8, 8, 3)
+
     def _reset(self) -> ts.TimeStep:
         if self._fixed_preference:
             obs = self._env.reset(self._preference)
         else:
             self._preference = utility_functions.sample_preference()
             obs = self._env.reset()
-        
+
         self._obs_stacker.reset_stack()
-        self._obs_stacker.add_observation(obs/255)      # Normalizing obs in range [0, 1]
+        self._obs_stacker.add_observation(obs / 255)  # Normalizing obs in range [0, 1]
         stacked_obs = self._obs_stacker.get_observation_stack()
-        
-        observations_and_preferences = {'observations': stacked_obs,
-                                        'preference_weights': self._preference/40}
+
+        observations_and_preferences = {
+            'observations': stacked_obs,
+            'preference_weights': self._preference / 40
+        }
         return ts.restart(observations_and_preferences)
-    
-    
+
     def _step(self, action: types.NestedArray) -> ts.TimeStep:
         if self._current_time_step.is_last():
             return self.reset()
-        
+
         obs, rewards, done, _ = self._env.step(action)
-        
-        self._obs_stacker.add_observation(obs/255)      # Normalizing obs in range [0, 1]
+
+        self._obs_stacker.add_observation(obs / 255)  # Normalizing obs in range [0, 1]
         stacked_obs = self._obs_stacker.get_observation_stack()
-        
+
         # Preferences are in range [-20, 20] we normalize them to the range [-0.5, 0.5]
-        observations_and_preferences = {'observations': stacked_obs,
-                                        'preference_weights': self._preference/40}
-        
+        observations_and_preferences = {
+            'observations': stacked_obs,
+            'preference_weights': self._preference / 40
+        }
+
         reward = np.dot(rewards, self._preference)
         if done:
             return ts.termination(observations_and_preferences, reward)
         else:
             return ts.transition(observations_and_preferences, reward, self.gamma)
-    
