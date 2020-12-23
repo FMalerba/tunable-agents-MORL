@@ -1,0 +1,21 @@
+first_layer/Conv2D.filters = 256
+first_layer/Conv2D.kernel_size = (3, 3)
+first_layer/Conv2D.activation = 'relu'
+first_layer/Conv2D.name = "Convolutional"
+first_layer/Dropout.rate = 0.2
+first_layer/Dropout.name = "Dropout"
+second_layer/Conv2D.filters = 256
+second_layer/Conv2D.kernel_size = (3, 3)
+second_layer/Conv2D.activation = 'relu'
+second_layer/Conv2D.name = "Convolutional2"
+second_layer/Dropout.rate = 0.2 
+second_layer/Dropout.name = "Dropout2"
+
+
+create_preprocessing.layers = [@first_layer/Conv2D(), @first_layer/Dropout(), 
+                               @second_layer/Conv2D(), @second_layer/Dropout(),
+                               @Flatten()]
+create_preprocessing.name = 'ImagePreprocessing'
+
+QNetwork.fc_layer_params = (64, 64)
+QNetwork.dropout_layer_params = [0.2, 0.2]
