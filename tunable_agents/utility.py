@@ -34,6 +34,21 @@ def load_gin_configs(gin_files, gin_bindings):
 
 @gin.configurable
 def create_preprocessing(**kwargs) -> Sequential:
+    """
+    Creates preprocessing layers for a single input using tf.keras.Sequential
+    
+    This function is to only be called inside the gin-config files and serves as a 
+    wrapper to config Sequential.
+    """
+    """
+    The reason for not using gin.config.external_configurable is that the Sequential's 
+    configurations seem to leak to other Sequential calls. Specifically, EncodingNetwork
+    copies the preprocessing_layers by creating a new Sequential object to which are then added
+    all the layers. The fact that configs leak, raises an error because the new Sequential is
+    spawned with all the layers from the configuration, and then the program tries to add them
+    again raising a NameError because you get two layers with the same name.
+    """
+    
     return Sequential(**kwargs)
 
 
