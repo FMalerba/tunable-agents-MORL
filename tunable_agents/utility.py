@@ -38,13 +38,8 @@ def create_preprocessing(**kwargs) -> Sequential:
 
 
 @gin.configurable
-def create_qnet(obs_spec: types.Spec, action_spec: types.Spec) -> q_network.QNetwork:
-    preprocessing_model = create_preprocessing()
-    preprocessing_layers = {
-        'observations': preprocessing_model,
-        'preference_weights': InputLayer(input_shape=tf.TensorShape((6,)), name='PrefInput')
-    }
-
+def create_qnet(obs_spec: types.Spec, action_spec: types.Spec,
+                preprocessing_layers: dict) -> q_network.QNetwork:
     preprocessing_combiner = Concatenate()
 
     return q_network.QNetwork(obs_spec,
@@ -78,38 +73,32 @@ def create_agent(agent_class: str, environment: tf_py_environment.TFPyEnvironmen
     Creates the agent.
 
     Args:
-      agent_class: str, type of agent to construct.
-      environment: The environment.
+      agent_class: str, type of agent to construct
+      environment: The environment
       learning_rate: The Learning Rate
       decaying_epsilon: Epsilon for Epsilon Greedy Policy
-      target_update_tau: Agent parameter
-      target_update_period: Agent parameter
-      gamma: Agent parameter
-      reward_scale_factor: Agent parameter
-      gradient_clipping: Agent parameter
-      debug_summaries: Agent parameter
-      summarize_grads_and_vars: Agent parameter
+      n_step_update: The number of steps for the policy updateS
       train_step_counter: The train step tf.Variable to be passed to agent
 
 
     Returns:
-      An agent for playing Hanabi.
+      An agent from TF-Agents
 
     Raises:
       ValueError: if an unknown agent type is requested.
     """
     if agent_class == 'DQN':
-        return dqn_agent.DqnAgent(
-            environment.time_step_spec(),
-            environment.action_spec(),
-            q_network=q_network.QNetwork(environment.time_step_spec().observation['observations'],
-                                         environment.action_spec()),
-            optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
-            observation_and_action_constraint_splitter=observation_and_action_constraint_splitter,
-            epsilon_greedy=decaying_epsilon,
-            n_step_update=n_step_update,
-            td_errors_loss_fn=common.element_wise_squared_loss,
-            train_step_counter=train_step_counter)
+        obs_spec = environment.time_step_spec().observation
+        obs_spec.pop('legal_moves', None)       # Pop legal moves if there are any
+        q_net = create_qnet(obs_spec, environment.action_spec())
+        return dqn_agent.DqnAgent(environment.time_step_spec(),
+                                  environment.action_spec(),
+                                  q_network=q_net,
+                                  optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
+                                  epsilon_greedy=decaying_epsilon,
+                                  n_step_update=n_step_update,
+                                  td_errors_loss_fn=common.element_wise_squared_loss,
+                                  train_step_counter=train_step_counter)
     elif agent_class == 'DDQN':
         return dqn_agent.DdqnAgent(
             environment.time_step_spec(),
@@ -134,16 +123,6 @@ def create_agent(agent_class: str, environment: tf_py_environment.TFPyEnvironmen
             n_step_update=n_step_update,
             td_errors_loss_fn=common.element_wise_squared_loss,
             train_step_counter=train_step_counter)
-    elif agent_class == 'replication_study':
-        q_net = create_qnet(environment.time_step_spec().observation, environment.action_spec())
-        return dqn_agent.DqnAgent(environment.time_step_spec(),
-                                  environment.action_spec(),
-                                  q_network=q_net,
-                                  optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
-                                  epsilon_greedy=decaying_epsilon,
-                                  n_step_update=n_step_update,
-                                  td_errors_loss_fn=common.element_wise_squared_loss,
-                                  train_step_counter=train_step_counter)
     else:
         raise ValueError('Expected valid agent_type, got {}'.format(agent_class))
 
