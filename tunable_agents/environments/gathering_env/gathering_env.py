@@ -76,20 +76,28 @@ def create_obs_stacker(environment: py_environment.PyEnvironment, history_size: 
 @gin.configurable
 class GatheringWrapper(py_environment.PyEnvironment):
 
-    def __init__(self, preference: np.ndarray = None, gamma: float = 0.99, history_size: int = 3) -> None:
+    def __init__(self,
+                 preference: np.ndarray = None,
+                 gamma: float = 0.99,
+                 history_size: int = 3,
+                 cumulative_rewards_flag: bool = False) -> None:
         super().__init__()
         # If a preference is passed to the environment, then such preference is fixed and won't be resampled
         self._fixed_preference = bool(preference)
         self._preference = preference
+        self._cumulative_rewards_flag = cumulative_rewards_flag
+        self._cumulative_rewards: np.ndarray = np.zeros(shape=(6,))
         self._env = mo_gathering_env.MOGatheringEnv()
         self.gamma = gamma
         self._obs_stacker = create_obs_stacker(self, history_size=history_size)
         self._observation_spec = {
-            'observations':
+            'state_obs':
                 array_spec.ArraySpec(shape=self._obs_stacker.observation_shape(), dtype=np.float32),
             'preference_weights':
                 array_spec.ArraySpec(shape=(6,), dtype=np.float32)
         }
+        if cumulative_rewards_flag:
+            self._observation_spec['cumulative_rewards'] = array_spec.ArraySpec(shape=(6,), dtype=np.float32)
         self._action_spec = array_spec.BoundedArraySpec(shape=(), dtype=np.int_, minimum=0, maximum=4)
 
     def observation_spec(self) -> types.NestedArraySpec:
@@ -103,38 +111,48 @@ class GatheringWrapper(py_environment.PyEnvironment):
 
     def _reset(self) -> ts.TimeStep:
         if self._fixed_preference:
-            obs = self._env.reset(self._preference)
+            state_obs = self._env.reset(self._preference)
         else:
             self._preference = utility_functions.sample_preference()
-            obs = self._env.reset()
+            state_obs = self._env.reset()
 
+        self._cumulative_rewards.fill(0.0)
+        
         self._obs_stacker.reset_stack()
-        self._obs_stacker.add_observation(obs / 255)  # Normalizing obs in range [0, 1]
+        self._obs_stacker.add_observation(state_obs / 255)  # Normalizing obs in range [0, 1]
         stacked_obs = self._obs_stacker.get_observation_stack()
 
-        observations_and_preferences = {
-            'observations': stacked_obs,
-            'preference_weights': self._preference / 40
+        # Preferences are in range [-20, 20] we normalize them to the range [-0.5, 0.5]
+        obs = {
+            'state_obs': stacked_obs,
+            'preference_weights': self._preference / 40,
         }
-        return ts.restart(observations_and_preferences)
+        if self._cumulative_rewards_flag:
+            obs['cumulative_rewards'] = self._cumulative_rewards
+
+        return ts.restart(obs)
 
     def _step(self, action: types.NestedArray) -> ts.TimeStep:
         if self._current_time_step.is_last():
             return self.reset()
 
-        obs, rewards, done, _ = self._env.step(action)
+        state_obs, rewards, done, _ = self._env.step(action)
 
-        self._obs_stacker.add_observation(obs / 255)  # Normalizing obs in range [0, 1]
+        self._cumulative_rewards += rewards
+        
+        self._obs_stacker.add_observation(state_obs / 255)  # Normalizing obs in range [0, 1]
         stacked_obs = self._obs_stacker.get_observation_stack()
 
         # Preferences are in range [-20, 20] we normalize them to the range [-0.5, 0.5]
-        observations_and_preferences = {
-            'observations': stacked_obs,
-            'preference_weights': self._preference / 40
+        obs = {
+            'state_obs': stacked_obs,
+            'preference_weights': self._preference / 40,
         }
+        if self._cumulative_rewards_flag:
+            obs['cumulative_rewards'] = self._cumulative_rewards
 
         reward = np.dot(rewards, self._preference)
         if done:
-            return ts.termination(observations_and_preferences, reward)
+            return ts.termination(obs, reward)
         else:
-            return ts.transition(observations_and_preferences, reward, self.gamma)
+            return ts.transition(obs, reward, self.gamma)
