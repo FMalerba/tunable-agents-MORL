@@ -14,7 +14,7 @@ from tunable_agents.environments.DST_env import DST_env
 from tunable_agents.environments.gathering_env import gathering_env
 from tunable_agents import external_configurables
 import tensorflow as tf
-from tensorflow.keras.layers import InputLayer, Conv2D, Dropout, Flatten, Concatenate
+from tensorflow.keras.layers import Concatenate, InputLayer
 from tensorflow.python.keras.engine.sequential import Sequential
 
 from functools import partial
@@ -40,6 +40,12 @@ def create_preprocessing(**kwargs) -> Sequential:
 @gin.configurable
 def create_qnet(obs_spec: types.Spec, action_spec: types.Spec,
                 preprocessing_layers: dict) -> q_network.QNetwork:
+    # Any observation that don't have already a defined preprocessing are simply
+    # fed to an InputLayer to then be concatenated with the output of other preprocessing
+    for obs in obs_spec:
+        if obs not in preprocessing_layers:
+            preprocessing_layers[obs] = InputLayer(input_shape=obs_spec[obs].shape)
+        
     preprocessing_combiner = Concatenate()
 
     return q_network.QNetwork(obs_spec,

@@ -17,5 +17,7 @@ create_preprocessing.layers = [@first_layer/Conv2D(), @first_layer/Dropout(),
                                @Flatten()]
 create_preprocessing.name = 'ImagePreprocessing'
 
+create_qnet.preprocessing_layers = {'state_obs': @create_preprocessing()}
+
 QNetwork.fc_layer_params = (64, 64)
 QNetwork.dropout_layer_params = [0.2, 0.2]
