@@ -151,6 +151,8 @@ def create_agent(agent_class: str, environment: tf_py_environment.TFPyEnvironmen
 @gin.configurable(denylist=['data_spec', 'batch_size'])
 def create_replay_buffer(data_spec, batch_size: int,
                          max_length: int) -> tf_uniform_replay_buffer.TFUniformReplayBuffer:
+    # TODO pass the GPU as device parameter to the RB in order to store it in VRAM.
+    # Analyse performance improvements that this might bring.
     return tf_uniform_replay_buffer.TFUniformReplayBuffer(data_spec=data_spec,
                                                           batch_size=batch_size,
                                                           max_length=max_length)
