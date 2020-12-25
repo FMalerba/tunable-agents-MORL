@@ -86,7 +86,7 @@ class GatheringWrapper(py_environment.PyEnvironment):
         self._fixed_preference = bool(preference)
         self._preference = preference
         self._cumulative_rewards_flag = cumulative_rewards_flag
-        self._cumulative_rewards: np.ndarray = np.zeros(shape=(6,))
+        self._cumulative_rewards: np.ndarray = np.zeros(shape=(6,), dtype=np.float32)
         self._env = mo_gathering_env.MOGatheringEnv()
         self.gamma = gamma
         self._obs_stacker = create_obs_stacker(self, history_size=history_size)
