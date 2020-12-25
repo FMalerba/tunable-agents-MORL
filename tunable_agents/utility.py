@@ -1,4 +1,4 @@
-from typing import Callable, List, Tuple, Union
+from typing import Callable, Tuple
 import gin.tf
 from tf_agents.agents import tf_agent
 from tf_agents.agents.dqn import dqn_agent
@@ -12,13 +12,12 @@ from tf_agents.typing import types
 from tf_agents.environments import tf_py_environment, py_environment
 from tunable_agents.environments.DST_env import DST_env
 from tunable_agents.environments.gathering_env import gathering_env
-from tunable_agents import external_configurables
+from tunable_agents import external_configurables       # Necessary to configure TF Layers
 import tensorflow as tf
-from tensorflow.keras.layers import InputLayer, Conv2D, Dropout, Flatten, Concatenate
+from tensorflow.keras.layers import Concatenate, InputLayer
 from tensorflow.python.keras.engine.sequential import Sequential
 
 from functools import partial
-
 
 
 def load_gin_configs(gin_files, gin_bindings):
@@ -30,29 +29,44 @@ def load_gin_configs(gin_files, gin_bindings):
       gin_bindings: List of gin parameter bindings to override the values in the
         config files.
     """
-    gin.parse_config_files_and_bindings(gin_files,
-                                        bindings=gin_bindings,
-                                        skip_unknown=False)
+    gin.parse_config_files_and_bindings(gin_files, bindings=gin_bindings, skip_unknown=False)
 
 
 @gin.configurable
 def create_preprocessing(**kwargs) -> Sequential:
+    """
+    Creates preprocessing layers for a single input using tf.keras.Sequential
+    
+    This function is to only be called inside the gin-config files and serves as a 
+    wrapper to config Sequential.
+    """
+    """
+    The reason for not using gin.config.external_configurable is that the Sequential's 
+    configurations seem to leak to other Sequential calls. Specifically, EncodingNetwork
+    copies the preprocessing_layers by creating a new Sequential object to which are then added
+    all the layers. The fact that configs leak, raises an error because the new Sequential is
+    spawned with all the layers from the configuration, and then the program tries to add them
+    again raising a NameError because you get two layers with the same name.
+    """
+    
     return Sequential(**kwargs)
 
 
 @gin.configurable
-def create_qnet(obs_spec: types.Spec, action_spec: types.Spec)  -> q_network.QNetwork:
-    preprocessing_model = create_preprocessing()
-    preprocessing_layers = {'observations': preprocessing_model,
-                            'preference_weights': InputLayer(input_shape=tf.TensorShape((6,)), name='PrefInput')}
-    
+def create_qnet(obs_spec: types.Spec, action_spec: types.Spec,
+                preprocessing_layers: dict) -> q_network.QNetwork:
+    # Any observation that don't have already a defined preprocessing are simply
+    # fed to an InputLayer to then be concatenated with the output of other preprocessing
+    for obs in obs_spec:
+        if obs not in preprocessing_layers:
+            preprocessing_layers[obs] = InputLayer(input_shape=obs_spec[obs].shape)
+        
     preprocessing_combiner = Concatenate()
-    
-    return q_network.QNetwork(
-                    obs_spec,
-                    action_spec,
-                    preprocessing_layers=preprocessing_layers,
-                    preprocessing_combiner=preprocessing_combiner)
+
+    return q_network.QNetwork(obs_spec,
+                              action_spec,
+                              preprocessing_layers=preprocessing_layers,
+                              preprocessing_combiner=preprocessing_combiner)
 
 
 @gin.configurable
@@ -73,62 +87,47 @@ def create_environment(game: str = 'DST') -> py_environment.PyEnvironment:
 
 
 @gin.configurable(denylist=['environment', 'train_step_counter'])
-def create_agent(
-        agent_class: str,
-        environment: tf_py_environment.TFPyEnvironment,
-        learning_rate: float,
-        decaying_epsilon: Callable[[], float],
-        n_step_update: int,
-        train_step_counter: tf.Variable
-) -> tf_agent.TFAgent:
+def create_agent(agent_class: str, environment: tf_py_environment.TFPyEnvironment, learning_rate: float,
+                 decaying_epsilon: Callable[[], float], n_step_update: int,
+                 train_step_counter: tf.Variable) -> tf_agent.TFAgent:
     """
     Creates the agent.
 
     Args:
-      agent_class: str, type of agent to construct.
-      environment: The environment.
+      agent_class: str, type of agent to construct
+      environment: The environment
       learning_rate: The Learning Rate
       decaying_epsilon: Epsilon for Epsilon Greedy Policy
-      target_update_tau: Agent parameter
-      target_update_period: Agent parameter
-      gamma: Agent parameter
-      reward_scale_factor: Agent parameter
-      gradient_clipping: Agent parameter
-      debug_summaries: Agent parameter
-      summarize_grads_and_vars: Agent parameter
+      n_step_update: The number of steps for the policy updateS
       train_step_counter: The train step tf.Variable to be passed to agent
 
 
     Returns:
-      An agent for playing Hanabi.
+      An agent from TF-Agents
 
     Raises:
       ValueError: if an unknown agent type is requested.
     """
     if agent_class == 'DQN':
-        return dqn_agent.DqnAgent(
-            environment.time_step_spec(),
-            environment.action_spec(),
-            q_network=q_network.QNetwork(
-                environment.time_step_spec().observation['observations'],
-                environment.action_spec()),
-            optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
-            observation_and_action_constraint_splitter=
-            observation_and_action_constraint_splitter,
-            epsilon_greedy=decaying_epsilon,
-            n_step_update=n_step_update,
-            td_errors_loss_fn=common.element_wise_squared_loss,
-            train_step_counter=train_step_counter)
+        obs_spec = environment.time_step_spec().observation
+        obs_spec.pop('legal_moves', None)       # Pop legal moves if there are any
+        q_net = create_qnet(obs_spec, environment.action_spec())
+        return dqn_agent.DqnAgent(environment.time_step_spec(),
+                                  environment.action_spec(),
+                                  q_network=q_net,
+                                  optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
+                                  epsilon_greedy=decaying_epsilon,
+                                  n_step_update=n_step_update,
+                                  td_errors_loss_fn=common.element_wise_squared_loss,
+                                  train_step_counter=train_step_counter)
     elif agent_class == 'DDQN':
         return dqn_agent.DdqnAgent(
             environment.time_step_spec(),
             environment.action_spec(),
-            q_network=q_network.QNetwork(
-                environment.time_step_spec().observation['observations'],
-                environment.action_spec()),
+            q_network=q_network.QNetwork(environment.time_step_spec().observation['observations'],
+                                         environment.action_spec()),
             optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
-            observation_and_action_constraint_splitter=
-            observation_and_action_constraint_splitter,
+            observation_and_action_constraint_splitter=observation_and_action_constraint_splitter,
             epsilon_greedy=decaying_epsilon,
             n_step_update=n_step_update,
             td_errors_loss_fn=common.element_wise_squared_loss,
@@ -138,36 +137,25 @@ def create_agent(
             environment.time_step_spec(),
             environment.action_spec(),
             categorical_q_network=categorical_q_network.CategoricalQNetwork(
-                environment.time_step_spec().observation['observations'],
-                environment.action_spec()),
+                environment.time_step_spec().observation['observations'], environment.action_spec()),
             optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
-            observation_and_action_constraint_splitter=
-            observation_and_action_constraint_splitter,
-            epsilon_greedy=decaying_epsilon,
-            n_step_update=n_step_update,
-            td_errors_loss_fn=common.element_wise_squared_loss,
-            train_step_counter=train_step_counter)
-    elif agent_class == 'replication_study':
-        q_net = create_qnet(environment.time_step_spec().observation,
-                            environment.action_spec())
-        return dqn_agent.DqnAgent(
-            environment.time_step_spec(),
-            environment.action_spec(),
-            q_network=q_net,
-            optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
+            observation_and_action_constraint_splitter=observation_and_action_constraint_splitter,
             epsilon_greedy=decaying_epsilon,
             n_step_update=n_step_update,
             td_errors_loss_fn=common.element_wise_squared_loss,
             train_step_counter=train_step_counter)
     else:
-        raise ValueError(
-            'Expected valid agent_type, got {}'.format(agent_class))
+        raise ValueError('Expected valid agent_type, got {}'.format(agent_class))
 
 
 @gin.configurable(denylist=['data_spec', 'batch_size'])
-def create_replay_buffer(data_spec, batch_size: int, max_length: int) -> tf_uniform_replay_buffer.TFUniformReplayBuffer:
-    return tf_uniform_replay_buffer.TFUniformReplayBuffer(
-        data_spec=data_spec, batch_size=batch_size, max_length=max_length)
+def create_replay_buffer(data_spec, batch_size: int,
+                         max_length: int) -> tf_uniform_replay_buffer.TFUniformReplayBuffer:
+    # TODO pass the GPU as device parameter to the RB in order to store it in VRAM.
+    # Analyse performance improvements that this might bring.
+    return tf_uniform_replay_buffer.TFUniformReplayBuffer(data_spec=data_spec,
+                                                          batch_size=batch_size,
+                                                          max_length=max_length)
 
 
 @gin.configurable
@@ -176,15 +164,14 @@ def no_decay(epsilon: float) -> float:
 
 
 @gin.configurable(denylist=['step'])
-def linear_decay(initial_epsilon: float,
-                 final_epsilon: float,
-                 step: tf.Variable,
-                 decay_time: int) -> float:
+def linear_decay(initial_epsilon: float, final_epsilon: float, step: tf.Variable, decay_time: int) -> float:
     """
     Linear decay from initial_epsilon to final_epsilon in the given decay_time as measured by step.
     It is assumed that initial_epsilon > final_epsilon.
     """
-    return tf.cast(tf.maximum(initial_epsilon - (initial_epsilon - final_epsilon)*(step/decay_time), final_epsilon), dtype=tf.float32)
+    return tf.cast(tf.maximum(initial_epsilon - (initial_epsilon - final_epsilon) * (step / decay_time),
+                              final_epsilon),
+                   dtype=tf.float32)
 
 
 @gin.configurable(denylist=['step'])
@@ -198,14 +185,12 @@ def exponential_decay(initial_epsilon: float,
         # Notice that this doesn't change the train_step outside the scope of this function
         # (which is the desired behaviour)
         step = step - reset_at_step
-    
-    return (0.5 ** tf.cast((step // decay_time), tf.float32)) * initial_epsilon
+
+    return (0.5**tf.cast((step // decay_time), tf.float32)) * initial_epsilon
 
 
 @gin.configurable(denylist=['step'])
-def decaying_epsilon(step: tf.Variable,
-                     decay_type: str = 'exponential'
-                     ) -> Callable[[], float]:
+def decaying_epsilon(step: tf.Variable, decay_type: str = 'exponential') -> Callable[[], float]:
 
     if decay_type == 'exponential':
         return partial(exponential_decay, step=step)
@@ -214,8 +199,7 @@ def decaying_epsilon(step: tf.Variable,
     elif decay_type == None:
         return partial(no_decay)
     else:
-        raise NotImplementedError(
-            'decay_type requested is not implemented yet.')
+        raise NotImplementedError('decay_type requested is not implemented yet.')
 
 
 def observation_and_action_constraint_splitter(obs) -> Tuple:

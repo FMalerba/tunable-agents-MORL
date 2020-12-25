@@ -4,7 +4,7 @@
 
 # Agent.
 gamma = 0.99
-create_agent.agent_class = 'replication_study'
+create_agent.agent_class = 'DQN'
 create_agent.learning_rate = 1e-4
 train_eval.num_steps = 2
 DqnAgent.target_update_tau = 0.05
@@ -31,7 +31,7 @@ linear_decay.decay_time = 10_000
 # Running and Training process
 initial_collection.collect_episodes = 50
 train_eval.num_iterations = 50_000
-train_eval.collect_episodes_per_epoch = 1
+train_eval.collect_episodes_per_epoch = 3
 train_eval.train_steps_per_epoch = 100
 train_eval.num_eval_episodes = 1000
 train_eval.batch_size = 32
