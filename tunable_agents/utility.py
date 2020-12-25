@@ -1,4 +1,4 @@
-from typing import Callable, List, Tuple, Union
+from typing import Callable, Tuple
 import gin.tf
 from tf_agents.agents import tf_agent
 from tf_agents.agents.dqn import dqn_agent
@@ -12,7 +12,7 @@ from tf_agents.typing import types
 from tf_agents.environments import tf_py_environment, py_environment
 from tunable_agents.environments.DST_env import DST_env
 from tunable_agents.environments.gathering_env import gathering_env
-from tunable_agents import external_configurables
+from tunable_agents import external_configurables       # Necessary to configure TF Layers
 import tensorflow as tf
 from tensorflow.keras.layers import Concatenate, InputLayer
 from tensorflow.python.keras.engine.sequential import Sequential
