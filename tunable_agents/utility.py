@@ -59,7 +59,7 @@ def create_qnet(obs_spec: types.Spec, action_spec: types.Spec,
     # fed to an InputLayer to then be concatenated with the output of other preprocessing
     for obs in obs_spec:
         if obs not in preprocessing_layers:
-            preprocessing_layers[obs] = InputLayer(input_shape=obs_spec[obs].shape)
+            preprocessing_layers[obs] = InputLayer(input_shape=obs_spec[obs].shape, name='{}_Input'.format(obs))
         
     preprocessing_combiner = Concatenate()
 
