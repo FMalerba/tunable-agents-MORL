@@ -96,10 +96,10 @@ class DSTWrapper(py_environment.PyEnvironment):
         self._env = DeepSeaTreasureEnvironment()
         self.gamma = gamma
         self._utility_function: Callable[[np.ndarray, np.ndarray], np.ndarray] = None
-        self._cumulative_rewards: np.ndarray = np.zeros(shape=(2,) dtype=np.float32)
+        self._cumulative_rewards: np.ndarray = np.zeros(shape=(2,), dtype=np.float32)
         self._observation_spec = {
             'observations': array_spec.ArraySpec(shape=(2,), dtype=np.int64),
-            'cumulative_rewards': array_spec.ArraySpec(shape=(2,), dtype=np.float32,
+            'cumulative_rewards': array_spec.ArraySpec(shape=(2,), dtype=np.float32),
             'legal_moves': array_spec.ArraySpec(shape=(4,), dtype=np.bool_)
         }
         self._action_spec = array_spec.BoundedArraySpec(shape=(),
