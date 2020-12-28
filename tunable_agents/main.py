@@ -94,7 +94,7 @@ def train_eval(
 
     eval_summary_writer = tf.summary.create_file_writer(eval_dir, flush_millis=10000)
 
-    tf.profiler.experimental.server.start(6009)
+    tf.profiler.experimental.server.start(6008)
     """
 	TODO use ParallelPyEnvironment to run envs in parallel and see how much we can speed up.
 		See: https://www.youtube.com/watch?v=U7g7-Jzj9qo&list=TLPQMDkwNDIwMjB-xXfzXt3B5Q&index=2 at minute 26:50
