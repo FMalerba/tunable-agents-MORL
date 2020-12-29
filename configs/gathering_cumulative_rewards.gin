@@ -1,6 +1,6 @@
 # Experiment
-#train_eval.experiment_name = 'gathering_replication' # Used to name the folder for logs/summaries/checkpoints
-#train_eval.env_id = 'gathering_replication'
+train_eval.experiment_name = 'gathering_cumulative_rewards'                # Used to name the folder for logs/summaries/checkpoints
+train_eval.env_id = 'gathering_cumulative_rewards'
 
 # Agent.
 gamma = 0.99

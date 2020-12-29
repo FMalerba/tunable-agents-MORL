@@ -31,15 +31,6 @@ flags.DEFINE_multi_string(
 FLAGS = flags.FLAGS
 
 
-def run_verbose_mode(agent_1, agent_2):
-    #TODO Very much unfinished function. it should run an episode stopping step by step
-    # and printing everything we might want to see in a human-friendly format
-    raise NotImplementedError('Look at comment above this line')
-    env = rl_env.make('Hanabi-Full-CardKnowledge', num_players=2)
-    tf_env = tf_py_environment.TFPyEnvironment(env)
-
-    state = tf.env.reset()
-
 
 @gin.configurable(allowlist=['collect_episodes'])
 def initial_collection(agent: tf_agent.TFAgent, env: tf_py_environment.TFPyEnvironment, rb_observer: list,
@@ -96,7 +87,7 @@ def train_eval(
     eval_summary_writer = tf.summary.create_file_writer(
         eval_dir, flush_millis=3600*2*1000)
 
-    tf.profiler.experimental.server.start(6009)
+    tf.profiler.experimental.server.start(6008)
     """
 	TODO use ParallelPyEnvironment to run envs in parallel and see how much we can speed up.
 		See: https://www.youtube.com/watch?v=U7g7-Jzj9qo&list=TLPQMDkwNDIwMjB-xXfzXt3B5Q&index=2 at minute 26:50
@@ -160,16 +151,6 @@ def train_eval(
         tf_metrics.AverageEpisodeLengthMetric(buffer_size=num_eval_episodes),
     ]
     
-    # I create the Driver only once instead of recreating it at the start of every epoch
-    # This is not a problem only because the agent's collect_policy has the agent's network
-    # and its tensors will update together with the agent's on agent.train() calls.
-    # If the agent is has a policy that doesn't depend only on Tensors, one must recreate a new
-    # policy after every epoch and create a new Driver to feed this to.
-    collect_driver = dynamic_episode_driver.DynamicEpisodeDriver(
-        tf_env, tf_agent.collect_policy,
-        observers=replay_observer + train_metrics,
-        num_episodes=collect_episodes_per_epoch)
-
     # I create the Driver only once instead of recreating it at the start of every epoch
     # This is not a problem only because the agent's collect_policy has the agent's network
     # and its tensors will update together with the agent's on agent.train() calls.

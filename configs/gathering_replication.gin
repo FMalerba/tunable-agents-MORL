@@ -1,6 +1,6 @@
 # Experiment
-#train_eval.experiment_name = 'gathering_replication' # Used to name the folder for logs/summaries/checkpoints
-#train_eval.env_id = 'gathering_replication'
+train_eval.experiment_name = 'gathering_replication'                # Used to name the folder for logs/summaries/checkpoints
+train_eval.env_id = 'gathering_replication'
 
 # Agent.
 gamma = 0.99
@@ -20,7 +20,7 @@ GatheringWrapper.gamma = %gamma
 GatheringWrapper.history_size = 3
 
 # Replay Buffer
-create_replay_buffer.max_length = 50_000    # RB capacity
+create_replay_buffer.max_length = 6_000    # RB capacity
 
 # Decaying Epsilon for the Epsilon-Greedy policy
 decaying_epsilon.decay_type = 'linear'
