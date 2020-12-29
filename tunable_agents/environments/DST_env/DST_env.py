@@ -90,7 +90,6 @@ class DeepSeaTreasureEnvironment:
 
 @gin.configurable
 class DSTWrapper(py_environment.PyEnvironment):
-
     def __init__(self, gamma: float) -> None:
         super().__init__()
         self._env = DeepSeaTreasureEnvironment()
@@ -109,10 +108,12 @@ class DSTWrapper(py_environment.PyEnvironment):
 
     def observation_spec(self) -> types.NestedArraySpec:
         return self._observation_spec
-
+    
+    
     def action_spec(self) -> types.NestedArraySpec:
         return self._action_spec
-
+    
+    
     def _reset(self) -> ts.TimeStep:
         obs, legal_moves = self._env.reset()
         self._cumulative_rewards.fill(0.0)

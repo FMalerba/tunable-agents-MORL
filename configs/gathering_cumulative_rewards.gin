@@ -1,6 +1,6 @@
 # Experiment
-#train_eval.experiment_name = 'gathering_replication' # Used to name the folder for logs/summaries/checkpoints
-#train_eval.env_id = 'gathering_replication'
+train_eval.experiment_name = 'gathering_cumulative_rewards'                # Used to name the folder for logs/summaries/checkpoints
+train_eval.env_id = 'gathering_cumulative_rewards'
 
 # Agent.
 gamma = 0.99
@@ -38,9 +38,7 @@ train_eval.num_eval_episodes = 1000
 train_eval.batch_size = 32
 
 # Checkpointing and Evaluation
-train_eval.train_checkpoint_interval = 1000
-train_eval.policy_checkpoint_interval = 1000
-train_eval.rb_checkpoint_interval = 1000
+train_eval.checkpoint_interval = 1000
 train_eval.eval_interval = 500
 
 
