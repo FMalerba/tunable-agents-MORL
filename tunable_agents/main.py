@@ -69,7 +69,8 @@ def train_eval(
     num_eval_episodes: int,
     # Param for checkpoints
     checkpoint_interval: int,
-    XLA_flag: bool = True
+    shared_RB: bool = True,
+    XLA_flag: bool = True       # When running on Windows machine, should be set to False
 ):
     """A simple train and eval for DQN."""
     root_dir = os.path.expanduser(root_dir)
@@ -89,20 +90,20 @@ def train_eval(
 
     tf.profiler.experimental.server.start(6008)
     """
-	TODO use ParallelPyEnvironment to run envs in parallel and see how much we can speed up.
-		See: https://www.youtube.com/watch?v=U7g7-Jzj9qo&list=TLPQMDkwNDIwMjB-xXfzXt3B5Q&index=2 at minute 26:50
-		Note: it is more than likely that batching the environment might require also passing a different batch_size
-		parameter to the metrics and the replay buffer. Also note that the replay buffer actually stores batch_size*max_length
-		frames, so for example right now to have a RB with 50k capacity you would have batch_size=1, max_length=50k. This is probaably
-		done for parallelization and memory access issues, where one wants to be sure that the parallel runs don't access the same memory
-		slots of the RB... As such if you want to run envs in parallel and keep RB capacity fixed you should divide the desired capacity
-		by batch_size and use that as max_length parameter. Btw, a frame stored by the RB can be variable; if num_steps=2 (as right now)
-		then a frame is  [time_step, action, next_time_step] (where time_step has all info including last reward). If you increase num_steps
-		then it's obvious how a frame would change, and also how this affects the *actual* number of transitions that the RB is storing.
-		Also note that if I ever actually manage to do the Prioritized RB, it won't support this batch parallelization. The issue lies with
-		the SumTree object (which I imported from the DeepMind framework) and the fact that it doesn't seem to me like this object could be 
-		parallelized (meaning that all memory access issues are solved) in any way...
-	"""
+    TODO use ParallelPyEnvironment to run envs in parallel and see how much we can speed up.
+        See: https://www.youtube.com/watch?v=U7g7-Jzj9qo&list=TLPQMDkwNDIwMjB-xXfzXt3B5Q&index=2 at minute 26:50
+        Note: it is more than likely that batching the environment might require also passing a different batch_size
+        parameter to the metrics and the replay buffer. Also note that the replay buffer actually stores batch_size*max_length
+        frames, so for example right now to have a RB with 50k capacity you would have batch_size=1, max_length=50k. This is probaably
+        done for parallelization and memory access issues, where one wants to be sure that the parallel runs don't access the same memory
+        slots of the RB... As such if you want to run envs in parallel and keep RB capacity fixed you should divide the desired capacity
+        by batch_size and use that as max_length parameter. Btw, a frame stored by the RB can be variable; if num_steps=2 (as right now)
+        then a frame is  [time_step, action, next_time_step] (where time_step has all info including last reward). If you increase num_steps
+        then it's obvious how a frame would change, and also how this affects the *actual* number of transitions that the RB is storing.
+        Also note that if I ever actually manage to do the Prioritized RB, it won't support this batch parallelization. The issue lies with
+        the SumTree object (which I imported from the DeepMind framework) and the fact that it doesn't seem to me like this object could be 
+        parallelized (meaning that all memory access issues are solved) in any way...
+    """
     # create the enviroment
     env = utility.create_environment()
     tf_env = tf_py_environment.TFPyEnvironment(env)
@@ -115,14 +116,14 @@ def train_eval(
     # Epsilon implementing decaying behaviour for the two agents
     decaying_epsilon = utility.decaying_epsilon(step=epoch_counter)
     """
-	TODO Performance Improvement: "When training on GPUs, make use of the TensorCore. GPU kernels use
-		the TensorCore when the precision is fp16 and input/output dimensions are divisible by 8 or 16 (for int8)"
-		(from https://www.tensorflow.org/guide/profiler#improve_device_performance). Maybe consider decreasing
-		precision to fp16 and possibly compensating with increased model complexity to not lose performance?
-		I mean if this allows us to use TensorCore then maybe it is worthwhile (computationally) to increase 
-		model size and lower precision. Need to test what the impact on agent performance is.
-		See https://www.tensorflow.org/guide/keras/mixed_precision for more info
-	"""
+    TODO Performance Improvement: "When training on GPUs, make use of the TensorCore. GPU kernels use
+        the TensorCore when the precision is fp16 and input/output dimensions are divisible by 8 or 16 (for int8)"
+        (from https://www.tensorflow.org/guide/profiler#improve_device_performance). Maybe consider decreasing
+        precision to fp16 and possibly compensating with increased model complexity to not lose performance?
+        I mean if this allows us to use TensorCore then maybe it is worthwhile (computationally) to increase 
+        model size and lower precision. Need to test what the impact on agent performance is.
+        See https://www.tensorflow.org/guide/keras/mixed_precision for more info
+    """
     # create an agent and a network
     tf_agent = utility.create_agent(
         environment=tf_env,
@@ -172,27 +173,31 @@ def train_eval(
     policy_checkpointer = common.Checkpointer(ckpt_dir=os.path.join(experiment_dir, 'checkpoints', 'policy'),
                                               policy=tf_agent.policy)
 
-    rb_checkpointer = common.Checkpointer(ckpt_dir=os.path.join(root_dir, 'replay_buffers', env_id),
+    if shared_RB:
+        rb_checkpoint_dir=os.path.join(experiment_dir, 'checkpoints', 'rb')
+    else:
+        rb_checkpoint_dir=os.path.join(root_dir, 'replay_buffers', env_id)
+    rb_checkpointer = common.Checkpointer(ckpt_dir=rb_checkpoint_dir,
                                           max_to_keep=1,
                                           replay_buffer=replay_buffer)
     """
-	FIXME Tensorflow documentation of tf.function (https://www.tensorflow.org/api_docs/python/tf/function)
-		states that autograph parameter should be set to True for Data-dependent control flow. What does this
-		mean? Is our training function not Data-dependent? Currently common.function (which is a wrapper on the 
-		tf.function wrapper) passes autograph=False by default.
-	TODO Maybe pass experimental_compile=True to common.function? Maybe it's not needed because 
-		later in the code we use tf.config.optimizer.set_jit(True) which enables XLA in general?
-		Who knows, test and look at performance I would say. Another thing to notice is that
-		experimental_compile=True would have the added bonus of telling us if indeed it manages
-		to compile or not since "The experimental_compile API has must-compile semantics: either 
-		the entire function is compiled with XLA, or an errors.InvalidArgumentError exception is thrown."
-		See: https://www.tensorflow.org/xla#explicit_compilation_with_tffunction
-	TODO common.function passes the parameter experimental_relax_shapes=True by default. Maybe 
-		consider instead passing it as False for efficiency... This is most likely linked to the
-		input_signature TODO that follows
-	TODO (low priority) add an input_signature parameter so that tf.function knows what to expect
-		and won't adapt to the input if something strange happens (which it really shouldn't happen)
-	"""
+    FIXME Tensorflow documentation of tf.function (https://www.tensorflow.org/api_docs/python/tf/function)
+        states that autograph parameter should be set to True for Data-dependent control flow. What does this
+        mean? Is our training function not Data-dependent? Currently common.function (which is a wrapper on the 
+        tf.function wrapper) passes autograph=False by default.
+    TODO Maybe pass experimental_compile=True to common.function? Maybe it's not needed because 
+        later in the code we use tf.config.optimizer.set_jit(True) which enables XLA in general?
+        Who knows, test and look at performance I would say. Another thing to notice is that
+        experimental_compile=True would have the added bonus of telling us if indeed it manages
+        to compile or not since "The experimental_compile API has must-compile semantics: either 
+        the entire function is compiled with XLA, or an errors.InvalidArgumentError exception is thrown."
+        See: https://www.tensorflow.org/xla#explicit_compilation_with_tffunction
+    TODO common.function passes the parameter experimental_relax_shapes=True by default. Maybe 
+        consider instead passing it as False for efficiency... This is most likely linked to the
+        input_signature TODO that follows
+    TODO (low priority) add an input_signature parameter so that tf.function knows what to expect
+        and won't adapt to the input if something strange happens (which it really shouldn't happen)
+    """
     # Compiled version of training functions (much faster)
     agent_train_function = common.function(tf_agent.train)
 
@@ -211,22 +216,22 @@ def train_eval(
         print('Finished running the Driver, it took {} seconds for {} episodes\n'.format(
             time.time() - start_time, collect_episodes_per_epoch))
         """
-		TODO Performance Optimization: Try out different batch sizes (TF usually recommends higher batch size) and see how this influences
-			performance, keeping track of possible differences in RAM/VRAM requirements. To do this properly the variable train_steps_per_epoch
-			should be changed appropriately (e.g. double the batch size --> half the train_steps), but it would be nice to also check that this
-			behaves as expected and doesn't impact per-epoch-learning. Per-epoch-learning is an abstract metric I just invented that would tell you
-			how much better a model got after an epoch... Essentially one should check that the agent manages to reach the same level of performance
-			(measured perhaps in average_return_per_episode == number of fireworks placed) at the same epoch (more or less) even if you do this thing
-			of doubling batch_size and halving train_steps_per_epoch.
-		FIXME Currently the num_parallel_calls passed changes depending on whether the replay buffer is uniform or prioritized. This is because passing
-			a value higher than 1 with the Prioritized Replay Buffer will make the code crash(without ever ending execution, outputting no errors, and 
-			not stucked in any loop (I have never witnessed this type of crash and it's extremely hard to investigate). My best guess to why this happens
-			is because multiple parallel executions of the _get_next() method end up calling the same SumTree object (which isn't expressed in tensors) 
-			probably creating some problems there. If one was masochistic enough to try and fix this I would suggest to start by writing the SumTree object
-			from scratch in TF 2.x compliant code; it might also be necessary to remove the tf.py_function wrappers that I created in the Prioritized Replay
-			Buffer code (which force TF to execute the functions eagerly as python functions). Note that the value "3" used in the case of a Uniform Replay Buffer
-			is completely arbitrary.
-		"""
+        TODO Performance Optimization: Try out different batch sizes (TF usually recommends higher batch size) and see how this influences
+            performance, keeping track of possible differences in RAM/VRAM requirements. To do this properly the variable train_steps_per_epoch
+            should be changed appropriately (e.g. double the batch size --> half the train_steps), but it would be nice to also check that this
+            behaves as expected and doesn't impact per-epoch-learning. Per-epoch-learning is an abstract metric I just invented that would tell you
+            how much better a model got after an epoch... Essentially one should check that the agent manages to reach the same level of performance
+            (measured perhaps in average_return_per_episode == number of fireworks placed) at the same epoch (more or less) even if you do this thing
+            of doubling batch_size and halving train_steps_per_epoch.
+        FIXME Currently the num_parallel_calls passed changes depending on whether the replay buffer is uniform or prioritized. This is because passing
+            a value higher than 1 with the Prioritized Replay Buffer will make the code crash(without ever ending execution, outputting no errors, and 
+            not stucked in any loop (I have never witnessed this type of crash and it's extremely hard to investigate). My best guess to why this happens
+            is because multiple parallel executions of the _get_next() method end up calling the same SumTree object (which isn't expressed in tensors) 
+            probably creating some problems there. If one was masochistic enough to try and fix this I would suggest to start by writing the SumTree object
+            from scratch in TF 2.x compliant code; it might also be necessary to remove the tf.py_function wrappers that I created in the Prioritized Replay
+            Buffer code (which force TF to execute the functions eagerly as python functions). Note that the value "3" used in the case of a Uniform Replay Buffer
+            is completely arbitrary.
+        """
         # Dataset generates trajectories with shape [Bx2x...]
         dataset = replay_buffer.as_dataset(
             num_parallel_calls=3, sample_batch_size=batch_size,
@@ -246,15 +251,15 @@ def train_eval(
                 break
             experience, data_info = data
             """
-			FIXME tensorflow documentation at https://www.tensorflow.org/tensorboard/migrate states that
-				default_writers do not cross the tf.function boundary and should instead be called as default
-				inside the tf.function. For now our code works because on the first run of the training function
-				the code is run in non-graph mode and thus "sees" the writer (and can then use it even in subsequent
-				graph-mode executions). This will stop working either if we start to export the compiled functions
-				so that we don't have the first "pythonic" run of them or if for some reason we change the file_writer
-				during execution. Should the summary writer be passed to the agent training function so that it can be set 
-				as default from inside the boundary of tf.function? How does tf-agent solve this issue?
-			"""
+            FIXME tensorflow documentation at https://www.tensorflow.org/tensorboard/migrate states that
+                default_writers do not cross the tf.function boundary and should instead be called as default
+                inside the tf.function. For now our code works because on the first run of the training function
+                the code is run in non-graph mode and thus "sees" the writer (and can then use it even in subsequent
+                graph-mode executions). This will stop working either if we start to export the compiled functions
+                so that we don't have the first "pythonic" run of them or if for some reason we change the file_writer
+                during execution. Should the summary writer be passed to the agent training function so that it can be set 
+                as default from inside the boundary of tf.function? How does tf-agent solve this issue?
+            """
 
             # losses = losses.write(c, agent_train_function(experience=experience).loss)
             loss_agent_info = agent_train_function(experience=experience)
