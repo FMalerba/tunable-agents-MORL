@@ -39,16 +39,59 @@ def initial_collection(agent: tf_agent.TFAgent, env: tf_py_environment.TFPyEnvir
     Samples transitions with the given agent and environment without training
     on the experience collected. This is done to partially fill-up the Replay Buffer.
     """
-    if collect_episodes:
-        collect_policy = agent.collect_policy
-        print('Sampling {} episodes with no training'.format(collect_episodes))
-        start_time = time.time()
-        dynamic_episode_driver.DynamicEpisodeDriver(env,
-                                                    collect_policy,
-                                                    observers=rb_observer,
-                                                    num_episodes=collect_episodes).run()
-        print('Finished sampling with the Driver, it took {} seconds for {} episodes\n'.format(
-            time.time() - start_time, collect_episodes))
+    if not collect_episodes:
+        return
+    collect_policy = agent.collect_policy
+    print('Sampling {} episodes with no training'.format(collect_episodes))
+    start_time = time.time()
+    dynamic_episode_driver.DynamicEpisodeDriver(env,
+                                                collect_policy,
+                                                observers=rb_observer,
+                                                num_episodes=collect_episodes).run()
+    print('Finished sampling with the Driver, it took {} seconds for {} episodes\n'.format(
+        time.time() - start_time, collect_episodes))
+
+
+@gin.configurable(allowlist=[])
+def initial_training(agent_train_function: Callable,
+                     replay_buffer: tf_uniform_replay_buffer.TFUniformReplayBuffer, num_steps: int,
+                     train_steps: int, batch_size: int) -> None:
+    if not train_steps:
+        return
+    # Dataset generates trajectories with shape [Bx2x...]
+    dataset = replay_buffer.as_dataset(
+        num_parallel_calls=3, sample_batch_size=batch_size,
+        num_steps=num_steps).prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+    print('Starting partial training of Agent from Replay Buffer' '\nCounting Steps:')
+    # Commenting out losses (and all their relevant code) to try and see if they are responsible for an observed memory leak.
+    # No feedback available yet on whether this is the case or not
+    # losses = tf.TensorArray(tf.float32, size=steps)
+    c = 0
+    start_time = time.time()
+    for data in dataset:
+        if c % (train_steps / 10) == 0 and c != 0:
+            #tf.summary.scalar("loss_agent", tf.math.reduce_mean(losses.stack()), step=train_step)
+            print("{}% completed with {} steps done".format(int(c / train_steps * 100), c))
+        if c == train_steps:
+            break
+        experience, data_info = data
+        """
+        FIXME tensorflow documentation at https://www.tensorflow.org/tensorboard/migrate states that
+            default_writers do not cross the tf.function boundary and should instead be called as default
+            inside the tf.function. For now our code works because on the first run of the training function
+            the code is run in non-graph mode and thus "sees" the writer (and can then use it even in subsequent
+            graph-mode executions). This will stop working either if we start to export the compiled functions
+            so that we don't have the first "pythonic" run of them or if for some reason we change the file_writer
+            during execution. Should the summary writer be passed to the agent training function so that it can be set 
+            as default from inside the boundary of tf.function? How does tf-agent solve this issue?
+        """
+
+        # losses = losses.write(c, agent_train_function(experience=experience).loss)
+        loss_agent_info = agent_train_function(experience=experience)
+        c += 1
+
+    # losses = losses.stack()
+    print("Ended epoch training for agent, it took {}".format(time.time() - start_time))
 
 
 @gin.configurable
@@ -69,7 +112,7 @@ def train_eval(
         num_eval_episodes: int,
         # Param for checkpoints
         checkpoint_interval: int,
-        shared_RB: bool = True,
+        shared_RB: bool = False,
         XLA_flag: bool = True  # When running on Windows machine, should be set to False
 ):
     """A simple train and eval for DQN."""
@@ -208,6 +251,8 @@ def train_eval(
     tf.config.optimizer.set_jit(XLA_flag)
 
     initial_collection(tf_agent, tf_env, replay_observer)
+    
+    initial_training(agent_train_function=agent_train_function, replay_buffer=replay_buffer)
 
     for _ in range(num_iterations):
         print('EPOCH {}'.format(epoch_counter.numpy()))
