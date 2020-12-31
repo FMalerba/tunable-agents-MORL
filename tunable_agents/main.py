@@ -12,6 +12,7 @@ import tensorflow as tf
 from tf_agents.agents import tf_agent
 from tf_agents.drivers import dynamic_episode_driver
 from tf_agents.environments import tf_py_environment
+from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.eval import metric_utils
 from tf_agents.metrics import tf_metrics
 from tf_agents.utils import common
@@ -29,7 +30,6 @@ flags.DEFINE_multi_string(
     '(e.g. "train_eval.num_iterations=100").')
 
 FLAGS = flags.FLAGS
-
 
 
 @gin.configurable(allowlist=['collect_episodes'])
@@ -53,56 +53,59 @@ def initial_collection(agent: tf_agent.TFAgent, env: tf_py_environment.TFPyEnvir
 
 @gin.configurable
 def train_eval(
-    root_dir: str,
-    experiment_name: str,
-    env_id: str,    # Used to identify a unique environment for RB reuse
-    num_iterations: int,
-    # Param for collect
-    collect_episodes_per_epoch: int,
-    # Number of steps for training update
-    num_steps: int,
-    # Params for train
-    train_steps_per_epoch: int,
-    batch_size: int,
-    # Params for eval
-    eval_interval: int,
-    num_eval_episodes: int,
-    # Param for checkpoints
-    checkpoint_interval: int,
-    shared_RB: bool = True,
-    XLA_flag: bool = True       # When running on Windows machine, should be set to False
+        root_dir: str,
+        experiment_name: str,
+        env_id: str,  # Used to identify a unique environment for RB reuse
+        num_iterations: int,
+        # Param for collect
+        collect_episodes_per_epoch: int,
+        # Number of steps for training update
+        num_steps: int,
+        # Params for train
+        train_steps_per_epoch: int,
+        batch_size: int,
+        # Params for eval
+        eval_interval: int,
+        num_eval_episodes: int,
+        # Param for checkpoints
+        checkpoint_interval: int,
+        shared_RB: bool = True,
+        XLA_flag: bool = True  # When running on Windows machine, should be set to False
 ):
     """A simple train and eval for DQN."""
     root_dir = os.path.expanduser(root_dir)
     experiment_dir = os.path.join(root_dir, experiment_name)
     train_dir = os.path.join(experiment_dir, 'train')
     eval_dir = os.path.join(experiment_dir, 'eval')
-    
+
     # The summary writers are set with a 2h flush interval. They are actually meant to never
     # flush by themselves, but only when flush is called on checkpointing. This is to synch
     # tensorboard summaries with the checkpoints so as to not write summaries twice in case of
     # restart of the code. Careful not to checkpoint too seldomly to avoid abusing memory.
-    train_summary_writer = tf.summary.create_file_writer(
-        train_dir, flush_millis=3600*2*1000)
+    train_summary_writer = tf.summary.create_file_writer(train_dir, flush_millis=3600 * 2 * 1000)
     train_summary_writer.set_as_default()
-    eval_summary_writer = tf.summary.create_file_writer(
-        eval_dir, flush_millis=3600*2*1000)
+    eval_summary_writer = tf.summary.create_file_writer(eval_dir, flush_millis=3600 * 2 * 1000)
 
     tf.profiler.experimental.server.start(6008)
     """
     TODO use ParallelPyEnvironment to run envs in parallel and see how much we can speed up.
-        See: https://www.youtube.com/watch?v=U7g7-Jzj9qo&list=TLPQMDkwNDIwMjB-xXfzXt3B5Q&index=2 at minute 26:50
-        Note: it is more than likely that batching the environment might require also passing a different batch_size
-        parameter to the metrics and the replay buffer. Also note that the replay buffer actually stores batch_size*max_length
-        frames, so for example right now to have a RB with 50k capacity you would have batch_size=1, max_length=50k. This is probaably
-        done for parallelization and memory access issues, where one wants to be sure that the parallel runs don't access the same memory
-        slots of the RB... As such if you want to run envs in parallel and keep RB capacity fixed you should divide the desired capacity
-        by batch_size and use that as max_length parameter. Btw, a frame stored by the RB can be variable; if num_steps=2 (as right now)
-        then a frame is  [time_step, action, next_time_step] (where time_step has all info including last reward). If you increase num_steps
-        then it's obvious how a frame would change, and also how this affects the *actual* number of transitions that the RB is storing.
-        Also note that if I ever actually manage to do the Prioritized RB, it won't support this batch parallelization. The issue lies with
-        the SumTree object (which I imported from the DeepMind framework) and the fact that it doesn't seem to me like this object could be 
-        parallelized (meaning that all memory access issues are solved) in any way...
+        See: https://www.youtube.com/watch?v=U7g7-Jzj9qo&list=TLPQMDkwNDIwMjB-xXfzXt3B5Q&index=2 
+        at minute 26:50
+        Note: it is more than likely that batching the environment might require also passing a 
+        different batch_size parameter to the metrics and the replay buffer. Also note that the
+        replay buffer actually stores batch_size*max_length frames, so for example right now to
+        have a RB with 50k capacity you would have batch_size=1, max_length=50k. This is probaably
+        done for parallelization and memory access issues, where one wants to be sure that the
+        parallel runs don't access the same memory slots of the RB... As such if you want to run
+        envs in parallel and keep RB capacity fixed you should divide the desired capacity by batch_size
+        and use that as max_length parameter. Btw, a frame stored by the RB can be variable;
+        if num_steps=2 (as right now) then a frame is  [time_step, action, next_time_step] 
+        (where time_step has all info including last reward). If you increase num_steps then 
+        it's obvious how a frame would change, and also how this affects the *actual* number of transitions
+        that the RB is storing. Also note that if I ever actually manage to do the Prioritized RB,
+        it won't support this batch parallelization. The issue lies with the SumTree object 
+        (which I imported from the DeepMind framework) and the fact that it doesn't seem to me
+        like this object could be parallelized (meaning that all memory access issues are solved) in any way...
     """
     # create the enviroment
     env = utility.create_environment()
@@ -131,7 +134,7 @@ def train_eval(
         n_step_update=num_steps - 1,
         decaying_epsilon=decaying_epsilon,
         train_step_counter=train_step)
-    
+
     # replay buffer
     replay_buffer = utility.create_replay_buffer(data_spec=tf_agent.collect_data_spec,
                                                  batch_size=tf_env.batch_size)
@@ -151,7 +154,7 @@ def train_eval(
         tf_metrics.AverageReturnMetric(buffer_size=num_eval_episodes),
         tf_metrics.AverageEpisodeLengthMetric(buffer_size=num_eval_episodes),
     ]
-    
+
     # I create the Driver only once instead of recreating it at the start of every epoch
     # This is not a problem only because the agent's collect_policy has the agent's network
     # and its tensors will update together with the agent's on agent.train() calls.
@@ -174,9 +177,9 @@ def train_eval(
                                               policy=tf_agent.policy)
 
     if shared_RB:
-        rb_checkpoint_dir=os.path.join(experiment_dir, 'checkpoints', 'rb')
+        rb_checkpoint_dir = os.path.join(experiment_dir, 'checkpoints', 'rb')
     else:
-        rb_checkpoint_dir=os.path.join(root_dir, 'replay_buffers', env_id)
+        rb_checkpoint_dir = os.path.join(root_dir, 'replay_buffers', env_id)
     rb_checkpointer = common.Checkpointer(ckpt_dir=rb_checkpoint_dir,
                                           max_to_keep=1,
                                           replay_buffer=replay_buffer)
@@ -216,21 +219,15 @@ def train_eval(
         print('Finished running the Driver, it took {} seconds for {} episodes\n'.format(
             time.time() - start_time, collect_episodes_per_epoch))
         """
-        TODO Performance Optimization: Try out different batch sizes (TF usually recommends higher batch size) and see how this influences
-            performance, keeping track of possible differences in RAM/VRAM requirements. To do this properly the variable train_steps_per_epoch
-            should be changed appropriately (e.g. double the batch size --> half the train_steps), but it would be nice to also check that this
-            behaves as expected and doesn't impact per-epoch-learning. Per-epoch-learning is an abstract metric I just invented that would tell you
-            how much better a model got after an epoch... Essentially one should check that the agent manages to reach the same level of performance
-            (measured perhaps in average_return_per_episode == number of fireworks placed) at the same epoch (more or less) even if you do this thing
-            of doubling batch_size and halving train_steps_per_epoch.
-        FIXME Currently the num_parallel_calls passed changes depending on whether the replay buffer is uniform or prioritized. This is because passing
-            a value higher than 1 with the Prioritized Replay Buffer will make the code crash(without ever ending execution, outputting no errors, and 
-            not stucked in any loop (I have never witnessed this type of crash and it's extremely hard to investigate). My best guess to why this happens
-            is because multiple parallel executions of the _get_next() method end up calling the same SumTree object (which isn't expressed in tensors) 
-            probably creating some problems there. If one was masochistic enough to try and fix this I would suggest to start by writing the SumTree object
-            from scratch in TF 2.x compliant code; it might also be necessary to remove the tf.py_function wrappers that I created in the Prioritized Replay
-            Buffer code (which force TF to execute the functions eagerly as python functions). Note that the value "3" used in the case of a Uniform Replay Buffer
-            is completely arbitrary.
+        TODO Performance Optimization: Try out different batch sizes (TF usually recommends higher batch size) 
+            and see how this influences performance, keeping track of possible differences in RAM/VRAM requirements.
+            To do this properly the variable train_steps_per_epoch should be changed appropriately (e.g. double
+            the batch size --> half the train_steps), but it would be nice to also check that this behaves
+            as expected and doesn't impact per-epoch-learning. Per-epoch-learning is an abstract metric I just
+            invented that would tell you how much better a model got after an epoch... Essentially one should
+            check that the agent manages to reach the same level of performance (measured perhaps in 
+            average_return_per_episode == number of fireworks placed) at the same epoch (more or less) even if
+            you do this thing of doubling batch_size and halving train_steps_per_epoch.
         """
         # Dataset generates trajectories with shape [Bx2x...]
         dataset = replay_buffer.as_dataset(
@@ -252,13 +249,14 @@ def train_eval(
             experience, data_info = data
             """
             FIXME tensorflow documentation at https://www.tensorflow.org/tensorboard/migrate states that
-                default_writers do not cross the tf.function boundary and should instead be called as default
-                inside the tf.function. For now our code works because on the first run of the training function
-                the code is run in non-graph mode and thus "sees" the writer (and can then use it even in subsequent
-                graph-mode executions). This will stop working either if we start to export the compiled functions
-                so that we don't have the first "pythonic" run of them or if for some reason we change the file_writer
-                during execution. Should the summary writer be passed to the agent training function so that it can be set 
-                as default from inside the boundary of tf.function? How does tf-agent solve this issue?
+                default_writers do not cross the tf.function boundary and should instead be called as
+                default inside the tf.function. For now our code works because on the first run of the
+                training function the code is run in non-graph mode and thus "sees" the writer (and can
+                then use it even in subsequent graph-mode executions). This will stop working either if
+                we start to export the compiled functions so that we don't have the first "pythonic" run
+                of them or if for some reason we change the file_writer during execution. Should the 
+                summary writer be passed to the agent training function so that it can be set as default
+                from inside the boundary of tf.function? How does tf-agent solve this issue?
             """
 
             # losses = losses.write(c, agent_train_function(experience=experience).loss)
