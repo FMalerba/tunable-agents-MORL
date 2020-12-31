@@ -18,17 +18,17 @@ class ObservationStacker(object):
     would result in a 8x8x9 observation stack.
     """
 
-    def __init__(self, history_size: int, observation_shape: Tuple[int]):
+    def __init__(self, history_size: int, single_observation_shape: Tuple[int]):
         """Initializer for observation stacker.
 
         Args:
           history_size: int, number of time steps to stack.
-          observation_size: tuple of integers, shape of observation vector on one time step.
+          single_observation_shape: tuple of integers, shape of observation vector on one time step.
         """
         self._history_size = history_size
-        self._observation_shape = observation_shape
-        self._obs_stack: np.ndarray = np.zeros(shape=(*observation_shape[:-1],
-                                                      observation_shape[-1] * history_size),
+        self._single_observation_shape = single_observation_shape
+        self._obs_stack: np.ndarray = np.zeros(shape=(*single_observation_shape[:-1],
+                                                      single_observation_shape[-1] * history_size),
                                                dtype=np.float32)
 
     def add_observation(self, observation: np.ndarray):
@@ -37,15 +37,15 @@ class ObservationStacker(object):
         Args:
           observation: observations to be added to the stack.
         """
-        self._obs_stack = np.roll(self._obs_stack, -self._observation_shape[-1], axis=-1)
-        self._obs_stack[..., -self._observation_shape[-1]:] = observation
+        self._obs_stack = np.roll(self._obs_stack, -self._single_observation_shape[-1], axis=-1)
+        self._obs_stack[..., -self._single_observation_shape[-1]:] = observation
 
     def get_observation_stack(self):
         """Returns the stacked observations."""
         return self._obs_stack
 
     def reset_stack(self):
-        """Resets the observation stacks to all zero."""
+        """Resets the observation stacks to all zeroes"""
         self._obs_stack.fill(0.0)
 
     @property
@@ -53,7 +53,7 @@ class ObservationStacker(object):
         """Returns number of steps to stack."""
         return self._history_size
 
-    def observation_shape(self):
+    def stacked_observation_shape(self):
         """Returns the shape of the observations after history stacking."""
         return self._obs_stack.shape
 
@@ -92,7 +92,7 @@ class GatheringWrapper(py_environment.PyEnvironment):
         self._obs_stacker = create_obs_stacker(self, history_size=history_size)
         self._observation_spec = {
             'state_obs':
-                array_spec.ArraySpec(shape=self._obs_stacker.observation_shape(), dtype=np.float32),
+                array_spec.ArraySpec(shape=self._obs_stacker.stacked_observation_shape(), dtype=np.float32),
             'preference_weights':
                 array_spec.ArraySpec(shape=(6,), dtype=np.float32)
         }
