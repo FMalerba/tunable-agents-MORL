@@ -1,62 +1,19 @@
+include 'gathering_replication.gin'
+
 # Experiment
 train_eval.experiment_name = 'gathering_replication_2'               # Used to name the folder for logs/summaries/checkpoints
-train_eval.env_id = 'gathering_replication'
 
 # Running and Training process
-initial_step/collection_step.collect_episodes = 50
-initial_step/training_step.train_steps = 0
 collect_episodes_per_epoch = 3
-num_eval_episodes = 1000
-train_eval.num_iterations = 100_000
-collection_step.collect_episodes = %collect_episodes_per_epoch
-training_step.train_steps = 100
-train_eval.num_eval_episodes = %num_eval_episodes
-DynamicEpisodeDriver.num_episodes = %collect_episodes_per_epoch
 
 #QNetwork
-include 'tunable-agents-MORL/configs/qnets/gathering_qnet.gin'
-
-# Agent.
-n_step_agent = 1            # n_step parameter must differ by 1 between agent and replay_buffer.as_dataset() call
-n_step_RB = 2
-gamma = 0.99
-create_agent.agent_class = 'DQN'
-create_agent.learning_rate = 1e-4
-DqnAgent.n_step_update = %n_step_agent
-DqnAgent.target_update_tau = 0.05
-DqnAgent.target_update_period = 5
-DqnAgent.gamma = %gamma
-DqnAgent.reward_scale_factor = 1.0
-DqnAgent.debug_summaries = False
-DqnAgent.summarize_grads_and_vars = False
-
-# Environment
-create_environment.game = 'gathering'
-GatheringWrapper.gamma = %gamma
-GatheringWrapper.history_size = 3
-
-# Metrics
-tf_agents.AverageReturnMetric.buffer_size = %collect_episodes_per_epoch
-tf_agents.AverageEpisodeLengthMetric.buffer_size = %collect_episodes_per_epoch
-eval_metrics/tf_agents.AverageReturnMetric.buffer_size = %num_eval_episodes
-eval_metrics/tf_agents.AverageEpisodeLengthMetric.buffer_size = %num_eval_episodes
+include 'qnets/gathering_qnet.gin'
 
 # Replay Buffer
 create_replay_buffer.max_length = 50_000    # RB capacity
-TFUniformReplayBuffer.as_dataset.num_parallel_calls = 3
-TFUniformReplayBuffer.as_dataset.num_steps = %n_step_RB
-TFUniformReplayBuffer.as_dataset.sample_batch_size = 32
 
 # Decaying Epsilon for the Epsilon-Greedy policy
 decaying_epsilon.decay_type = 'linear'
 linear_decay.initial_epsilon = 0.9
 linear_decay.final_epsilon = 0.05
 linear_decay.decay_time = 10_000
-
-# Checkpointing and Evaluation
-train_eval.checkpoint_interval = 1000
-train_eval.eval_interval = 500
-
-
-
-
