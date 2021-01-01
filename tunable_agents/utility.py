@@ -12,7 +12,7 @@ from tf_agents.typing import types
 from tf_agents.environments import tf_py_environment, py_environment
 from tunable_agents.environments.DST_env import DST_env
 from tunable_agents.environments.gathering_env import gathering_env
-from tunable_agents import external_configurables       # Necessary to configure TF Layers
+from tunable_agents import external_configurables  # Necessary to configure TF Layers
 import tensorflow as tf
 from tensorflow.keras.layers import Concatenate, InputLayer
 from tensorflow.python.keras.engine.sequential import Sequential
@@ -48,7 +48,7 @@ def create_preprocessing(**kwargs) -> Sequential:
     spawned with all the layers from the configuration, and then the program tries to add them
     again raising a NameError because you get two layers with the same name.
     """
-    
+
     return Sequential(**kwargs)
 
 
@@ -59,8 +59,9 @@ def create_qnet(obs_spec: types.Spec, action_spec: types.Spec,
     # fed to an InputLayer to then be concatenated with the output of other preprocessing
     for obs in obs_spec:
         if obs not in preprocessing_layers:
-            preprocessing_layers[obs] = InputLayer(input_shape=obs_spec[obs].shape, name='{}_Input'.format(obs))
-        
+            preprocessing_layers[obs] = InputLayer(input_shape=obs_spec[obs].shape,
+                                                   name='{}_Input'.format(obs))
+
     preprocessing_combiner = Concatenate()
 
     return q_network.QNetwork(obs_spec,
@@ -88,8 +89,7 @@ def create_environment(game: str = 'DST') -> py_environment.PyEnvironment:
 
 @gin.configurable(denylist=['environment', 'train_step_counter'])
 def create_agent(agent_class: str, environment: tf_py_environment.TFPyEnvironment, learning_rate: float,
-                 decaying_epsilon: Callable[[], float], n_step_update: int,
-                 train_step_counter: tf.Variable) -> tf_agent.TFAgent:
+                 decaying_epsilon: Callable[[], float], train_step_counter: tf.Variable) -> tf_agent.TFAgent:
     """
     Creates the agent.
 
@@ -110,14 +110,13 @@ def create_agent(agent_class: str, environment: tf_py_environment.TFPyEnvironmen
     """
     if agent_class == 'DQN':
         obs_spec = environment.time_step_spec().observation
-        obs_spec.pop('legal_moves', None)       # Pop legal moves if there are any
+        obs_spec.pop('legal_moves', None)  # Pop legal moves if there are any
         q_net = create_qnet(obs_spec, environment.action_spec())
         return dqn_agent.DqnAgent(environment.time_step_spec(),
                                   environment.action_spec(),
                                   q_network=q_net,
                                   optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
                                   epsilon_greedy=decaying_epsilon,
-                                  n_step_update=n_step_update,
                                   td_errors_loss_fn=common.element_wise_squared_loss,
                                   train_step_counter=train_step_counter)
     elif agent_class == 'DDQN':
@@ -129,7 +128,6 @@ def create_agent(agent_class: str, environment: tf_py_environment.TFPyEnvironmen
             optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
             observation_and_action_constraint_splitter=observation_and_action_constraint_splitter,
             epsilon_greedy=decaying_epsilon,
-            n_step_update=n_step_update,
             td_errors_loss_fn=common.element_wise_squared_loss,
             train_step_counter=train_step_counter)
     elif agent_class == 'categorical_dqn':
@@ -141,7 +139,6 @@ def create_agent(agent_class: str, environment: tf_py_environment.TFPyEnvironmen
             optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
             observation_and_action_constraint_splitter=observation_and_action_constraint_splitter,
             epsilon_greedy=decaying_epsilon,
-            n_step_update=n_step_update,
             td_errors_loss_fn=common.element_wise_squared_loss,
             train_step_counter=train_step_counter)
     else:
