@@ -208,9 +208,9 @@ def train_eval(
                                               policy=tf_agent.policy)
 
     if shared_RB:
-        rb_checkpoint_dir = os.path.join(experiment_dir, 'checkpoints', 'rb')
-    else:
         rb_checkpoint_dir = os.path.join(root_dir, 'replay_buffers', env_id)
+    else:
+        rb_checkpoint_dir = os.path.join(experiment_dir, 'checkpoints', 'rb')
     rb_checkpointer = common.Checkpointer(ckpt_dir=rb_checkpoint_dir,
                                           max_to_keep=1,
                                           replay_buffer=replay_buffer)
