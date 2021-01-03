@@ -35,7 +35,7 @@ def load_gin_configs(gin_files, gin_bindings):
     except:
         raise ValueError("Expected gin_files paths to be like {}, instead got {}".format('.../configs/...', gin_files[0]))
     
-    configs_folder_path = '/'.join(path_folders[:configs_folder_index])
+    configs_folder_path = '/'.join(path_folders[:configs_folder_index + 1])
     gin.add_config_file_search_path(configs_folder_path)
     gin.parse_config_files_and_bindings(gin_files, bindings=gin_bindings, skip_unknown=False)
 
