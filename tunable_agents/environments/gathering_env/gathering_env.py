@@ -83,11 +83,11 @@ class GatheringWrapper(py_environment.PyEnvironment):
                  cumulative_rewards_flag: bool = False) -> None:
         super().__init__()
         # If a preference is passed to the environment, then such preference is fixed and won't be resampled
-        self._fixed_preference = bool(preference)
+        self._fixed_preference = preference is not None
         self._preference = preference
         self._cumulative_rewards_flag = cumulative_rewards_flag
         self._cumulative_rewards: np.ndarray = np.zeros(shape=(6,), dtype=np.float32)
-        self._env = mo_gathering_env.MOGatheringEnv()
+        self._env = mo_gathering_env.MOGatheringEnv(preference=preference) if self._fixed_preference else mo_gathering_env.MOGatheringEnv()
         self.gamma = gamma
         self._obs_stacker = create_obs_stacker(self, history_size=history_size)
         self._observation_spec = {
@@ -111,10 +111,10 @@ class GatheringWrapper(py_environment.PyEnvironment):
 
     def _reset(self) -> ts.TimeStep:
         if self._fixed_preference:
-            state_obs = self._env.reset(self._preference)
+            state_obs = self._env.reset()
         else:
             self._preference = utility_functions.sample_preference()
-            state_obs = self._env.reset()
+            state_obs = self._env.reset(self._preference)
 
         self._cumulative_rewards.fill(0.0)
         
