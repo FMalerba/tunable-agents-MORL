@@ -4,9 +4,6 @@ include 'gathering_replication.gin'
 train_eval.experiment_name = 'gathering_cumulative_rewards'                # Used to name the folder for logs/summaries/checkpoints
 train_eval.env_id = 'gathering_cumulative_rewards'
 
-#QNetwork
-include 'qnets/gathering_qnet.gin'
-
 # Environment
 GatheringWrapper.cumulative_rewards_flag = True
 

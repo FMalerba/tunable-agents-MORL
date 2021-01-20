@@ -6,9 +6,6 @@ train_eval.experiment_name = 'gathering_replication_2'               # Used to n
 # Running and Training process
 collect_episodes_per_epoch = 3
 
-#QNetwork
-include 'qnets/gathering_qnet.gin'
-
 # Replay Buffer
 create_replay_buffer.max_length = 50_000    # RB capacity
 

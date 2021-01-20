@@ -13,9 +13,6 @@ training_step.train_steps = 100
 train_eval.num_eval_episodes = %num_eval_episodes
 DynamicEpisodeDriver.num_episodes = %collect_episodes_per_epoch
 
-#QNetwork
-include 'qnets/gathering_qnet.gin'
-
 # Agent.
 n_step_agent = 1            # n_step parameter must differ by 1 between agent and replay_buffer.as_dataset() call
 n_step_RB = 2
