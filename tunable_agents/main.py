@@ -9,7 +9,6 @@ from absl import logging
 import gin
 from tunable_agents import utility
 import tensorflow as tf
-from tf_agents.agents import tf_agent
 from tf_agents.drivers import dynamic_episode_driver
 from tf_agents.environments import tf_py_environment
 from tf_agents.replay_buffers import tf_uniform_replay_buffer
@@ -115,13 +114,12 @@ def train_eval(
     train_dir = os.path.join(experiment_dir, 'train')
     eval_dir = os.path.join(experiment_dir, 'eval')
 
-    # The summary writers are set with a 2h flush interval. They are actually meant to never
-    # flush by themselves, but only when flush is called on checkpointing. This is to synch
-    # tensorboard summaries with the checkpoints so as to not write summaries twice in case of
-    # restart of the code. Careful not to checkpoint too seldomly to avoid abusing memory.
-    train_summary_writer = tf.summary.create_file_writer(train_dir, flush_millis=3600 * 2 * 1000)
+    # The summary writers are not in synch with checkpointing and tensorboard will give
+    # wierd plots if code is stopped and rebooted from checkpoint. To solve this, one can
+    # increase the flush_millis param by a lot. This goes at the expense of high RAM usage.
+    train_summary_writer = tf.summary.create_file_writer(train_dir, flush_millis=10000)
     train_summary_writer.set_as_default()
-    eval_summary_writer = tf.summary.create_file_writer(eval_dir, flush_millis=3600 * 2 * 1000)
+    eval_summary_writer = tf.summary.create_file_writer(eval_dir, flush_millis=10000)
 
     tf.profiler.experimental.server.start(6008)
     """
@@ -261,6 +259,7 @@ def train_eval(
 
         train_metrics[2].reset()
         train_metrics[3].reset()
+        train_summary_writer.flush()    # Comment this out when synching tensorboard with checkpoints
 
         # Checkpointing and flushing summaries
         if epoch_counter.numpy() % checkpoint_interval == 0:
