@@ -1,6 +1,6 @@
 from typing import Tuple
-from gym_mo.envs.gridworlds import mo_gathering_env
-from tunable_agents.environments import utility_functions
+from gym_mo.envs.gridworlds.mo_gathering_env import MOGatheringEnv
+from tunable_agents.environments.utility_functions import sample_utility, UtilityFunction
 from tf_agents.environments import py_environment
 from tf_agents.specs import array_spec
 from tf_agents.trajectories import time_step as ts
@@ -77,23 +77,29 @@ def create_obs_stacker(environment: py_environment.PyEnvironment, history_size: 
 class GatheringWrapper(py_environment.PyEnvironment):
 
     def __init__(self,
-                 preference: np.ndarray = None,
+                 utility_repr: np.ndarray = None,
+                 utility_type: str = 'linear',
                  gamma: float = 0.99,
                  history_size: int = 3,
                  cumulative_rewards_flag: bool = False) -> None:
         super().__init__()
-        # If a preference is passed to the environment, then such preference is fixed and won't be resampled
-        self._fixed_preference = preference is not None
-        self._preference = preference
+        # If a utility representatino is passed to the environment, then the corresponding utility is fixed and won't be resampled
+        self._fixed_utility = utility_repr is not None
+        self._utility_repr = utility_repr
+        self._utility_type = utility_type
+        self._utility_func: UtilityFunction = sample_utility(utility_type, utility_repr) if utility_repr is not None else None
+        
         self._cumulative_rewards_flag = cumulative_rewards_flag
         self._cumulative_rewards: np.ndarray = np.zeros(shape=(6,), dtype=np.float32)
-        self._env = mo_gathering_env.MOGatheringEnv(preference=preference) if self._fixed_preference else mo_gathering_env.MOGatheringEnv()
+        
+        self._env = MOGatheringEnv(preference=utility_repr) if self._fixed_utility else MOGatheringEnv()
         self.gamma = gamma
         self._obs_stacker = create_obs_stacker(self, history_size=history_size)
+        
         self._observation_spec = {
             'state_obs':
                 array_spec.ArraySpec(shape=self._obs_stacker.stacked_observation_shape(), dtype=np.float32),
-            'preference_weights':
+            'utility_representation':
                 array_spec.ArraySpec(shape=(6,), dtype=np.float32)
         }
         if cumulative_rewards_flag:
@@ -110,22 +116,22 @@ class GatheringWrapper(py_environment.PyEnvironment):
         return (8, 8, 3)
 
     def _reset(self) -> ts.TimeStep:
-        if self._fixed_preference:
+        if self._fixed_utility:
             state_obs = self._env.reset()
         else:
-            self._preference = utility_functions.sample_preference()
-            state_obs = self._env.reset(self._preference)
+            self._utility_repr, self._utility_func = sample_utility(self._utility_type)
+            state_obs = self._env.reset(self._utility_repr)
 
         self._cumulative_rewards.fill(0.0)
+        self._prev_step_utility = 0
         
         self._obs_stacker.reset_stack()
         self._obs_stacker.add_observation(state_obs / 255)  # Normalizing obs in range [0, 1]
         stacked_obs = self._obs_stacker.get_observation_stack()
 
-        # Preferences are in range [-20, 20] we normalize them to the range [-0.5, 0.5]
         obs = {
             'state_obs': stacked_obs,
-            'preference_weights': self._preference / 40,
+            'utility_representation': self._utility_repr / 40,
         }
         if self._cumulative_rewards_flag:
             obs['cumulative_rewards'] = self._cumulative_rewards
@@ -143,15 +149,19 @@ class GatheringWrapper(py_environment.PyEnvironment):
         self._obs_stacker.add_observation(state_obs / 255)  # Normalizing obs in range [0, 1]
         stacked_obs = self._obs_stacker.get_observation_stack()
 
-        # Preferences are in range [-20, 20] we normalize them to the range [-0.5, 0.5]
         obs = {
             'state_obs': stacked_obs,
-            'preference_weights': self._preference / 40,
+            'utility_representation': self._utility_repr,
         }
         if self._cumulative_rewards_flag:
             obs['cumulative_rewards'] = self._cumulative_rewards
 
-        reward = np.dot(rewards, self._preference)
+        # The scalar reward on which to train is equal to the delta in the utility between the
+        # previous time step and the current one.
+        current_utility = self._utility_func(self._cumulative_rewards)
+        reward = current_utility - self._prev_step_utility
+        self._prev_step_utility = current_utility
+        
         if done:
             return ts.termination(obs, reward)
         else:
