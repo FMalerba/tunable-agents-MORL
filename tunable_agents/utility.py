@@ -12,7 +12,7 @@ from tf_agents.typing import types
 from tf_agents.environments import tf_py_environment, py_environment
 from tunable_agents.environments.DST_env import DST_env
 from tunable_agents.environments.gathering_env import gathering_env
-from tunable_agents import external_configurables  # Necessary to configure TF Layers
+from tunable_agents import external_configurables  # Don't remove, it's necessary to configure TF Layers
 import tensorflow as tf
 from tensorflow.keras.layers import Concatenate, InputLayer
 from tensorflow.python.keras.engine.sequential import Sequential
@@ -219,3 +219,4 @@ def print_readable_timestep(time_step: ts.TimeStep, environment: tf_py_environme
     for i in range(environment._env.num_moves()):
         if time_step.observation["legal_moves"].numpy()[0][i]:
             print(environment._env.game.get_move(i), ' - ', i)
+

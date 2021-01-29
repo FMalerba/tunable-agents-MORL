@@ -15,6 +15,7 @@ from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.eval import metric_utils
 from tf_agents.metrics import tf_metrics
 from tf_agents.utils import common
+from tf_agents.policies import policy_saver
 
 gpus = tf.config.experimental.list_physical_devices('GPU')
 tf.config.experimental.set_memory_growth(gpus[0], True)
@@ -202,8 +203,7 @@ def train_eval(
                                              metrics=metric_utils.MetricsGroup(
                                                  train_metrics, 'train_metrics'))
 
-    policy_checkpointer = common.Checkpointer(ckpt_dir=os.path.join(experiment_dir, 'checkpoints', 'policy'),
-                                              policy=tf_agent.policy)
+    tf_policy_saver = policy_saver.PolicySaver(policy=tf_agent.policy)
 
     if shared_RB:
         rb_checkpoint_dir = os.path.join(root_dir, 'replay_buffers', env_id)
@@ -265,8 +265,8 @@ def train_eval(
         if epoch_counter.numpy() % checkpoint_interval == 0:
             train_summary_writer.flush()
             train_checkpointer.save(global_step=epoch_counter.numpy())
-            policy_checkpointer.save(global_step=epoch_counter.numpy())
             rb_checkpointer.save(global_step=epoch_counter.numpy())
+            tf_policy_saver.save(export_dir=os.path.join(experiment_dir, 'policy'))
 
         # Evaluation Run
         if epoch_counter.numpy() % eval_interval == 0:
