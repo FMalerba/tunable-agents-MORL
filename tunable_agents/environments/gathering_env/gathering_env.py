@@ -1,6 +1,6 @@
 from typing import Tuple
-from gym_mo.envs.gridworlds.mo_gathering_env import MOGatheringEnv
-from tunable_agents.environments.utility_functions import sample_utility, UtilityFunction
+from gym_mo.envs.gridworlds.mo_gridworld_base import MOGridworld
+from tunable_agents.environments.utility_functions import sample_utility
 from tf_agents.environments import py_environment
 from tf_agents.specs import array_spec
 from tf_agents.trajectories import time_step as ts
@@ -73,7 +73,7 @@ def create_obs_stacker(environment: py_environment.PyEnvironment, history_size: 
     return ObservationStacker(history_size, environment.single_obs_shape())
 
 
-@gin.configurable
+@gin.configurable()
 class GatheringWrapper(py_environment.PyEnvironment):
 
     def __init__(self,
@@ -92,7 +92,7 @@ class GatheringWrapper(py_environment.PyEnvironment):
         self._cumulative_rewards_flag = cumulative_rewards_flag
         self._cumulative_rewards: np.ndarray = np.zeros(shape=(6,), dtype=np.float32)
         
-        self._env = MOGatheringEnv(preference=utility_repr) if self._fixed_utility else MOGatheringEnv()
+        self._env = MOGridworld(preference=utility_repr) if self._fixed_utility else MOGridworld()
         self.gamma = gamma
         self._obs_stacker = create_obs_stacker(self, history_size=history_size)
         
@@ -142,6 +142,8 @@ class GatheringWrapper(py_environment.PyEnvironment):
         if self._current_time_step.is_last():
             return self.reset()
 
+        # DQN requires action_spec to have a minimum of 0, whilst underlying env takes action
+        # from 1 to 4. Shifting the action by 1 to make them compatible.
         state_obs, rewards, done, _ = self._env.step(action + 1)
 
         self._cumulative_rewards += rewards
