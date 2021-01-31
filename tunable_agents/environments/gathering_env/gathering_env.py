@@ -87,7 +87,7 @@ class GatheringWrapper(py_environment.PyEnvironment):
         self._fixed_utility = utility_repr is not None
         self._utility_repr = utility_repr
         self._utility_type = utility_type
-        self._utility_func: UtilityFunction = sample_utility(utility_type, utility_repr) if utility_repr is not None else None
+        self._utility_func = sample_utility(utility_type, utility_repr)[1] if utility_repr is not None else None
         
         self._cumulative_rewards_flag = cumulative_rewards_flag
         self._cumulative_rewards: np.ndarray = np.zeros(shape=(6,), dtype=np.float32)
@@ -104,7 +104,7 @@ class GatheringWrapper(py_environment.PyEnvironment):
         }
         if cumulative_rewards_flag:
             self._observation_spec['cumulative_rewards'] = array_spec.ArraySpec(shape=(6,), dtype=np.float32)
-        self._action_spec = array_spec.BoundedArraySpec(shape=(), dtype=np.int_, minimum=0, maximum=4)
+        self._action_spec = array_spec.BoundedArraySpec(shape=(), dtype=np.int_, minimum=1, maximum=4)
 
     def observation_spec(self) -> types.NestedArraySpec:
         return self._observation_spec
