@@ -104,7 +104,7 @@ class GatheringWrapper(py_environment.PyEnvironment):
         }
         if cumulative_rewards_flag:
             self._observation_spec['cumulative_rewards'] = array_spec.ArraySpec(shape=(6,), dtype=np.float32)
-        self._action_spec = array_spec.BoundedArraySpec(shape=(), dtype=np.int_, minimum=1, maximum=4)
+        self._action_spec = array_spec.BoundedArraySpec(shape=(), dtype=np.int_, minimum=0, maximum=3)
 
     def observation_spec(self) -> types.NestedArraySpec:
         return self._observation_spec
@@ -142,7 +142,7 @@ class GatheringWrapper(py_environment.PyEnvironment):
         if self._current_time_step.is_last():
             return self.reset()
 
-        state_obs, rewards, done, _ = self._env.step(action)
+        state_obs, rewards, done, _ = self._env.step(action + 1)
 
         self._cumulative_rewards += rewards
         
