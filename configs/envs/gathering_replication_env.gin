@@ -1,0 +1,54 @@
+# Deterministic Agent
+HunterAgent.goal_object_idx = 3
+HunterAgent.initial_position = [7, 7]
+HunterAgent.is_walkable = True
+HunterAgent.is_consumed = False
+HunterAgent.reward_on_encounter = 0
+HunterAgent.color = (255.0, 0.0, 255.0)
+HunterAgent.idx = 5
+
+# GridObjects
+wall/GridObject.is_walkable = True
+wall/GridObject.is_consumed = False
+wall/GridObject.reward_on_encounter = 0
+wall/GridObject.color = (255.0, 255.0, 255.0)
+wall/GridObject.idx = 1
+green/GridObject.is_walkable = True
+green/GridObject.is_consumed = True
+green/GridObject.reward_on_encounter = 0
+green/GridObject.color = (0.0, 255.0, 0.0)
+green/GridObject.idx = 2
+red/GridObject.is_walkable = True
+red/GridObject.is_consumed = True
+red/GridObject.reward_on_encounter = 1
+red/GridObject.color = (255.0, 0.0, 0.0)
+red/GridObject.idx = 3
+yellow/GridObject.is_walkable = True
+yellow/GridObject.is_consumed = True
+yellow/GridObject.reward_on_encounter = 0
+yellow/GridObject.color = (255.0, 255.0, 0.0)
+yellow/GridObject.idx = 4
+
+# Gridworld Environment
+MOGridworld.map = ['        ',
+                   '        ',
+                   '        ',
+                   '        ',
+                   '        ',
+                   '        ',
+                   '        ',
+                   '        ',
+                  ]
+MOGridworld.object_mapping = {'#': @wall/GridObject(),
+                              'green': @green/GridObject(),
+                              'red': @red/GridObject(),
+                              'yellow': @yellow/GridObject(),
+                              ' ': None
+                             }
+MOGridworld.random_items = ['red','green','red','green','red','green','yellow','yellow']
+MOGridworld.random_items_frame = 2
+MOGridworld.init_agents = [@HunterAgent()]
+MOGridworld.agent_start = [0,0]
+MOGridworld.agent_color = (0.0, 0.0, 255.0)
+MOGridworld.max_steps = 30
+MOGridworld.include_agents = False
