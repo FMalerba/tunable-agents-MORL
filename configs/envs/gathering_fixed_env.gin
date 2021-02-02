@@ -1,0 +1,20 @@
+include 'envs/gathering_replication_env.gin'
+
+# Gridworld Environment
+MOGridworld.map = [' ',     ' ',     ' ',     ' ',     ' ',     ' ',     ' ',     ' ',
+                   ' ',     ' ',     ' ',     ' ',     ' ',     ' ',     ' ',     ' ',
+                   ' ',     ' ',     ' ',  'yellow',   ' ',   'green',   ' ',     ' ',
+                   ' ',     ' ',   'green',   ' ',   'green',   ' ',     ' ',     ' ',
+                   ' ',     ' ',     ' ',    'red',    ' ',     ' ',     ' ',     ' ',
+                   ' ',     ' ',    'red',   'red',    ' ',  'yellow',   ' ',     ' ',
+                   ' ',     ' ',     ' ',     ' ',     ' ',     ' ',     ' ',     ' ',
+                   ' ',     ' ',     ' ',     ' ',     ' ',     ' ',     ' ',     ' ',
+                  ]
+MOGridworld.object_mapping = {'#': @wall/GridObject(),
+                              'green': @green/GridObject(),
+                              'red': @red/GridObject(),
+                              'yellow': @yellow/GridObject(),
+                              ' ': None
+                             }
+
+MOGridworld.random_items = []
