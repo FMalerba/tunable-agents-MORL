@@ -245,6 +245,7 @@ def train_eval(
                     replay_buffer=replay_buffer)
 
     for _ in range(num_iterations):
+        epoch_counter.assign_add(1)
         print('EPOCH {}'.format(epoch_counter.numpy()))
         tf.summary.scalar(name='Epsilon', data=decaying_epsilon(), step=epoch_counter)
 
@@ -252,7 +253,6 @@ def train_eval(
 
         training_step(agent_train_function=agent_train_function, replay_buffer=replay_buffer)
 
-        epoch_counter.assign_add(1)
 
         for train_metric in train_metrics:
             train_metric.tf_summaries(train_step=epoch_counter, step_metrics=train_metrics[:2])
