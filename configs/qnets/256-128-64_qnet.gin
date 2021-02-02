@@ -1,4 +1,4 @@
-include qnets/replication_qnet.gin
+include "qnets/replication_qnet.gin"
 
 QNetwork.fc_layer_params = (256, 128, 64)
 QNetwork.dropout_layer_params = [0.2, 0.2, 0.2]
