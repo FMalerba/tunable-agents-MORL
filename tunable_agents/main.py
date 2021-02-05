@@ -122,7 +122,9 @@ def train_eval(
     train_summary_writer.set_as_default()
     eval_summary_writer = tf.summary.create_file_writer(eval_dir, flush_millis=10000)
 
-    tf.profiler.experimental.server.start(6008)
+    # This line is commented out to check whether this is responsible for unusual memory errors
+    # on the server.. No feedback on this issue yet.
+    # tf.profiler.experimental.server.start(6008)
     """
     TODO use ParallelPyEnvironment to run envs in parallel and see how much we can speed up.
         See: https://www.youtube.com/watch?v=U7g7-Jzj9qo&list=TLPQMDkwNDIwMjB-xXfzXt3B5Q&index=2 
