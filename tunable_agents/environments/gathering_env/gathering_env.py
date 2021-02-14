@@ -104,7 +104,7 @@ class GatheringWrapper(py_environment.PyEnvironment):
         }
         if cumulative_rewards_flag:
             self._observation_spec['cumulative_rewards'] = array_spec.ArraySpec(shape=(6,), dtype=np.float32)
-        self._action_spec = array_spec.BoundedArraySpec(shape=(), dtype=np.int_, minimum=0, maximum=3)
+        self._action_spec = array_spec.BoundedArraySpec(shape=(), dtype=np.int_, minimum=0, maximum=4)
 
     def observation_spec(self) -> types.NestedArraySpec:
         return self._observation_spec
@@ -144,7 +144,7 @@ class GatheringWrapper(py_environment.PyEnvironment):
 
         # DQN requires action_spec to have a minimum of 0, whilst underlying env takes action
         # from 1 to 4. Shifting the action by 1 to make them compatible.
-        state_obs, rewards, done, _ = self._env.step(action + 1)
+        state_obs, rewards, done, _ = self._env.step(action)
 
         self._cumulative_rewards += rewards
         
