@@ -77,11 +77,13 @@ def create_obs_stacker(environment: py_environment.PyEnvironment, history_size: 
 class GatheringWrapper(py_environment.PyEnvironment):
 
     def __init__(self,
-                 utility_repr: np.ndarray = None,
-                 utility_type: str = 'linear',
+                 cumulative_rewards_flag: bool = False,
                  gamma: float = 0.99,
                  history_size: int = 3,
-                 cumulative_rewards_flag: bool = False) -> None:
+                 utility_repr: np.ndarray = None,
+                 utility_repr_shape: tuple = (4,),
+                 utility_type: str = 'linear'
+                 ) -> None:
         super().__init__()
         # If a utility representatino is passed to the environment, then the corresponding utility is fixed and won't be resampled
         self._fixed_utility = utility_repr is not None
@@ -100,7 +102,7 @@ class GatheringWrapper(py_environment.PyEnvironment):
             'state_obs':
                 array_spec.ArraySpec(shape=self._obs_stacker.stacked_observation_shape(), dtype=np.float32),
             'utility_representation':
-                array_spec.ArraySpec(shape=(6,), dtype=np.float32)
+                array_spec.ArraySpec(shape=utility_repr_shape, dtype=np.float32)
         }
         if cumulative_rewards_flag:
             self._observation_spec['cumulative_rewards'] = array_spec.ArraySpec(shape=(6,), dtype=np.float32)

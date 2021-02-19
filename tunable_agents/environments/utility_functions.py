@@ -16,7 +16,7 @@ def polinomial_utility(reward: np.ndarray, coefficients: np.ndarray) -> float:
 
 
 def threshold_utility(reward: np.ndarray, thresholds: np.ndarray) -> float:
-    return np.where(reward >= thresholds, 1, 0)
+    return np.sum(np.where(reward >= thresholds, 1, 0))
 
 
 def sample_linear_preference() -> np.ndarray:
@@ -49,10 +49,10 @@ def sample_utility(utility_type: str = 'linear', utility_repr: np.ndarray = None
     if utility_type == 'linear':
         if utility_repr is not None:
             # Preferences are in range [-20, 20] we normalize them to the range [-0.5, 0.5] for the agent's represantation
-            return utility_repr/40, partial(linear_utility, weights=utility_repr)
+            return utility_repr[2:]/40, partial(linear_utility, weights=utility_repr)
         weights = sample_linear_preference()
         # Preferences are in range [-20, 20] we normalize them to the range [-0.5, 0.5] for the agent's represantation
-        return weights/40, partial(linear_utility, weights=weights)
+        return weights[2:]/40, partial(linear_utility, weights=weights)
     elif utility_type == 'threshold':
         if utility_repr is not None:
             return utility_repr, partial(threshold_utility, thresholds=utility_repr)
