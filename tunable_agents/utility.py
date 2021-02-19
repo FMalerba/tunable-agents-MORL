@@ -1,23 +1,26 @@
-from typing import Callable, Tuple
+from functools import partial
 import gin.tf
-from tf_agents.agents import tf_agent
-from tf_agents.agents.dqn import dqn_agent
-from tf_agents.agents.categorical_dqn import categorical_dqn_agent
-from tf_agents.networks import categorical_q_network
-from tf_agents.networks import q_network
-from tf_agents.replay_buffers import tf_uniform_replay_buffer
-from tf_agents.utils import common
-from tf_agents.trajectories import time_step as ts
-from tf_agents.typing import types
-from tf_agents.environments import tf_py_environment, py_environment
-from tunable_agents.environments.DST_env import DST_env
-from tunable_agents.environments.gathering_env import gathering_env
-from tunable_agents import external_configurables  # Don't remove, it's necessary to configure TF Layers
+import time
+from typing import Callable, Tuple
+
 import tensorflow as tf
 from tensorflow.keras.layers import Concatenate, InputLayer
 from tensorflow.python.keras.engine.sequential import Sequential
 
-from functools import partial
+from tf_agents.agents import tf_agent
+from tf_agents.agents.dqn import dqn_agent
+from tf_agents.agents.categorical_dqn import categorical_dqn_agent
+from tf_agents.environments import py_environment, tf_py_environment
+from tf_agents.networks import categorical_q_network
+from tf_agents.networks import q_network
+from tf_agents.replay_buffers import tf_uniform_replay_buffer
+from tf_agents.trajectories import time_step as ts
+from tf_agents.typing import types
+from tf_agents.utils import common
+
+from tunable_agents.environments.DST_env import DST_env
+from tunable_agents.environments.gathering_env import gathering_env
+from tunable_agents import external_configurables  # Don't remove, it's necessary to configure TF Layers
 
 
 def load_gin_configs(gin_files, gin_bindings):
