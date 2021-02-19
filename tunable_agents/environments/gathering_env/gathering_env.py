@@ -133,7 +133,7 @@ class GatheringWrapper(py_environment.PyEnvironment):
 
         obs = {
             'state_obs': stacked_obs,
-            'utility_representation': self._utility_repr,
+            'utility_representation': self._utility_repr[2:],
         }
         if self._cumulative_rewards_flag:
             obs['cumulative_rewards'] = self._cumulative_rewards
@@ -155,7 +155,7 @@ class GatheringWrapper(py_environment.PyEnvironment):
 
         obs = {
             'state_obs': stacked_obs,
-            'utility_representation': self._utility_repr,
+            'utility_representation': self._utility_repr[2:],
         }
         if self._cumulative_rewards_flag:
             obs['cumulative_rewards'] = self._cumulative_rewards
