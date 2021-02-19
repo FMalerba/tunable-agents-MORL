@@ -52,3 +52,11 @@ MOGridworld.agent_start = [0,0]
 MOGridworld.agent_color = (0.0, 0.0, 255.0)
 MOGridworld.max_steps = 30
 MOGridworld.include_agents = False
+
+# GatheringWrapper
+create_environment.game = 'gathering'
+GatheringWrapper.cumulative_rewards_flag = False
+GatheringWrapper.gamma = 0.99
+GatheringWrapper.history_size = 3
+GatheringWrapper.utility_repr_shape = (4, )
+GatheringWrapper.utility_type = 'linear'
