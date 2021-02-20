@@ -46,4 +46,4 @@ linear_decay.decay_time = 50_000
 
 # Checkpointing and Evaluation
 train_eval.checkpoint_interval = 1000
-train_eval.eval_interval = 500
+train_eval.eval_interval = 2000
