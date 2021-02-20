@@ -199,6 +199,7 @@ def train_eval(
 
     # checkpointer:
     train_checkpointer = common.Checkpointer(ckpt_dir=os.path.join(experiment_dir, 'checkpoints', 'train'),
+                                             max_to_keep=1,
                                              agent=tf_agent,
                                              train_step=train_step,
                                              epoch_counter=epoch_counter,
