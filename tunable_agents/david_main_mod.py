@@ -27,7 +27,8 @@ from datetime import datetime # Used for timing script
 import time
 
 gpus = tf.config.experimental.list_physical_devices('GPU')
-tf.config.experimental.set_memory_growth(gpus[0], True)
+if gpus != []:
+    tf.config.experimental.set_memory_growth(gpus[0], True)
 
 flags.DEFINE_string('root_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
                     'Root directory for writing logs/summaries/checkpoints.')
