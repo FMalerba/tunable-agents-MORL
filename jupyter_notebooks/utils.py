@@ -42,7 +42,7 @@ def model_play_episode(env: py_environment.PyEnvironment, model) -> None:
     render_time_step(time_step, ax)
     while not time_step.is_last():
         state = time_step.observation['state_obs']
-        weights = time_step.observation['utility_representation'][2:]
+        weights = time_step.observation['utility_representation']
         action = np.argmax(model.predict([state[np.newaxis], weights[np.newaxis]]))
         time_step = env.step(action)
         i += 1
@@ -77,7 +77,7 @@ def model_evaluate_average_utility(env: py_environment.PyEnvironment, model, n_e
         time_step = env.reset()
         while not time_step.is_last():
             state = time_step.observation['state_obs']
-            weights = time_step.observation['utility_representation'][2:]
+            weights = time_step.observation['utility_representation']
             action = np.argmax(model.predict([state[np.newaxis], weights[np.newaxis]]))
             time_step = env.step(action)
             
