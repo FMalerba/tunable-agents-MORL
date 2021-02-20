@@ -305,7 +305,7 @@ class DQNAgent:
             
             # Reset env
             ts = self.env.reset()
-            preference = ts.observation['utility_representation'][2:]
+            preference = ts.observation['utility_representation']
             state = ts.observation['state_obs']
             
             
