@@ -70,10 +70,9 @@ def create_qnet(obs_spec: types.Spec, action_spec: types.Spec,
     # fed to an InputLayer to then be concatenated with the output of other preprocessing
     for obs in obs_spec:
         if obs not in preprocessing_layers:
-            preprocessing_layers[obs] = InputLayer(input_shape=obs_spec[obs].shape,
-                                                   name='{}_Input'.format(obs))
+            preprocessing_layers[obs] = Sequential(name='{}_Input'.format(obs))
 
-    preprocessing_combiner = Concatenate()
+    preprocessing_combiner = Concatenate(axis=-1)
 
     return q_network.QNetwork(obs_spec,
                               action_spec,
@@ -82,7 +81,7 @@ def create_qnet(obs_spec: types.Spec, action_spec: types.Spec,
 
 
 @gin.configurable
-def create_environment(game: str = 'DST') -> py_environment.PyEnvironment:
+def create_environment(game: str = 'gathering') -> py_environment.PyEnvironment:
     """Creates the environment.
     
     Args:
