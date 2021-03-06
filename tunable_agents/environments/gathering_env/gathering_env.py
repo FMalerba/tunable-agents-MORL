@@ -80,21 +80,25 @@ class GatheringWrapper(py_environment.PyEnvironment):
                  cumulative_rewards_flag: bool = False,
                  gamma: float = 0.99,
                  history_size: int = 3,
-                 utility_repr: np.ndarray = None,
+                 utility_repr_agent: np.ndarray = None,
+                 utility_repr_gridworld: np.ndarray = None,
                  utility_repr_shape: tuple = (4,),
                  utility_type: str = 'linear'
                  ) -> None:
         super().__init__()
-        # If a utility representatino is passed to the environment, then the corresponding utility is fixed and won't be resampled
-        self._fixed_utility = utility_repr is not None
-        self._utility_repr = utility_repr
+        # If a utility representation is passed to the environment, then the corresponding utility is fixed and won't be resampled
+        # There are two utility representations, one that is fed as input to the agent and the other that is fed as preference
+        # representation to the underlying gridworld object.
+        self._fixed_utility = utility_repr_agent is not None
+        self._utility_repr_agent = utility_repr_agent
+        self._utility_repr_gridworld = utility_repr_gridworld
         self._utility_type = utility_type
-        self._utility_func = sample_utility(utility_type, utility_repr)[1] if utility_repr is not None else None
+        self._utility_func = sample_utility(utility_type, utility_repr_agent)[2] if utility_repr_agent is not None else None
         
         self._cumulative_rewards_flag = cumulative_rewards_flag
         self._cumulative_rewards: np.ndarray = np.zeros(shape=(6,), dtype=np.float32)
         
-        self._env = MOGridworld(preference=utility_repr) if self._fixed_utility else MOGridworld()
+        self._env = MOGridworld(preference=utility_repr_gridworld) if self._fixed_utility else MOGridworld()
         self.gamma = gamma
         self._obs_stacker = create_obs_stacker(self, history_size=history_size)
         
@@ -121,8 +125,8 @@ class GatheringWrapper(py_environment.PyEnvironment):
         if self._fixed_utility:
             state_obs = self._env.reset()
         else:
-            self._utility_repr, self._utility_func = sample_utility(self._utility_type)
-            state_obs = self._env.reset(self._utility_repr)
+            self._utility_repr_agent, self._utility_repr_gridworld, self._utility_func = sample_utility(self._utility_type)
+            state_obs = self._env.reset(self._utility_repr_gridworld)
 
         self._cumulative_rewards.fill(0.0)
         self._prev_step_utility = 0
@@ -133,7 +137,7 @@ class GatheringWrapper(py_environment.PyEnvironment):
 
         obs = {
             'state_obs': stacked_obs,
-            'utility_representation': self._utility_repr[2:],
+            'utility_representation': self._utility_repr_agent,
         }
         if self._cumulative_rewards_flag:
             obs['cumulative_rewards'] = self._cumulative_rewards
@@ -144,8 +148,6 @@ class GatheringWrapper(py_environment.PyEnvironment):
         if self._current_time_step.is_last():
             return self.reset()
 
-        # DQN requires action_spec to have a minimum of 0, whilst underlying env takes action
-        # from 1 to 4. Shifting the action by 1 to make them compatible.
         state_obs, rewards, done, _ = self._env.step(action)
 
         self._cumulative_rewards += rewards
@@ -155,7 +157,7 @@ class GatheringWrapper(py_environment.PyEnvironment):
 
         obs = {
             'state_obs': stacked_obs,
-            'utility_representation': self._utility_repr[2:],
+            'utility_representation': self._utility_repr_agent,
         }
         if self._cumulative_rewards_flag:
             obs['cumulative_rewards'] = self._cumulative_rewards
