@@ -1,9 +1,3 @@
-
-#import tracemalloc
-
-#tracemalloc.start()
-#prev_snapshot = tracemalloc.take_snapshot()
-
 from absl import app
 from absl import flags
 from absl import logging
@@ -47,8 +41,6 @@ def collection_step(env: py_environment.PyEnvironment, tf_agent: agent.DQNAgent,
     if not collect_episodes:
         return
 
-    #print('Sampling {} episodes'.format(collect_episodes))
-    start_time = time.time()
     for _ in range(collect_episodes):
         # Reset env
         ts = env.reset()
@@ -69,9 +61,6 @@ def collection_step(env: py_environment.PyEnvironment, tf_agent: agent.DQNAgent,
                     
         reward_tracker.append(episode_reward)
     
-    #print('Finished sampling, it took {} seconds for {} episodes\n'.format(
-    #    time.time() - start_time, collect_episodes))
-    
     return episode_reward
 
 
@@ -80,18 +69,13 @@ def training_step(tf_agent: agent.DQNAgent, replay_memory: agent.ReplayMemory,
                   batch_size: int, train_steps: int) -> None:
     if not train_steps:
         return
-    #print('Starting partial training of Agent from Replay Buffer' '\nCounting Steps:')
     
-    start_time = time.time()
     for c in range(train_steps):
         if c % (train_steps / 10) == 0 and c != 0:
             pass
-            #tf.summary.scalar("loss_agent", tf.math.reduce_mean(losses.stack()), step=train_step)
-            #print("{}% completed with {} steps done".format(int(c / train_steps * 100), c))
         experiences = replay_memory.sample(batch_size)
         tf_agent.training_step(experiences)
 
-    #print("Ended epoch training for agent, it took {}".format(time.time() - start_time))
 
 
 @gin.configurable
