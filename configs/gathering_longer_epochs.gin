@@ -9,14 +9,13 @@ collect_episodes_per_epoch = 100
 training_step.train_steps = 2500
 
 # Replay Buffer
-create_replay_buffer.max_length = 50_000    # RB capacity
 TFUniformReplayBuffer.as_dataset.sample_batch_size = 128
 
 # Decaying Epsilon for the Epsilon-Greedy policy
 decaying_epsilon.decay_type = 'linear'
-linear_decay.initial_epsilon = 0.9
+linear_decay.initial_epsilon = 0.95
 linear_decay.final_epsilon = 0.05
-linear_decay.decay_time = 800
+linear_decay.decay_time = 600
 
 
 # Checkpointing and Evaluation

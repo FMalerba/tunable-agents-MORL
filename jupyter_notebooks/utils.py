@@ -53,7 +53,7 @@ def model_play_episode(env: py_environment.PyEnvironment, model) -> None:
     plt.show()
 
 
-def policy_evaluate_average_utility(env: py_environment.PyEnvironment, policy: tf_policy.TFPolicy, n_episodes: int) -> float:
+def policy_evaluate_utility(env: py_environment.PyEnvironment, policy: tf_policy.TFPolicy, n_episodes: int) -> float:
     utilities = np.empty(shape=(n_episodes), dtype=np.float32)
     
     for i in tqdm(range(n_episodes)):
@@ -67,10 +67,10 @@ def policy_evaluate_average_utility(env: py_environment.PyEnvironment, policy: t
         utilities[i] = env._prev_step_utility
         
     
-    return np.mean(utilities)
+    return utilities
 
 
-def model_evaluate_average_utility(env: py_environment.PyEnvironment, model, n_episodes: int) -> float:
+def model_evaluate_utility(env: py_environment.PyEnvironment, model, n_episodes: int) -> float:
     utilities = np.empty(shape=(n_episodes), dtype=np.float32)
     
     for i in tqdm(range(n_episodes)):
@@ -84,6 +84,6 @@ def model_evaluate_average_utility(env: py_environment.PyEnvironment, model, n_e
         utilities[i] = env._prev_step_utility
         
     
-    return np.mean(utilities)
+    return utilities
 
 
