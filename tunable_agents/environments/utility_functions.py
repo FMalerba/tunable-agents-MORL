@@ -1,4 +1,4 @@
-from typing import Callable, Tuple
+from typing import Callable, Tuple, Optional
 import numpy as np
 from functools import partial
 
@@ -15,8 +15,8 @@ def polinomial_utility(reward: np.ndarray, coefficients: np.ndarray) -> float:
     return np.sum(poly * coefficients)
 
 
-def threshold_utility(reward: np.ndarray, thresholds: np.ndarray) -> float:
-    return np.sum(np.where(reward >= thresholds, 1, 0))
+def threshold_utility(reward: np.ndarray, thresholds: np.ndarray, coefficients: np.ndarray) -> float:
+    return np.sum(np.where(reward >= thresholds, reward*coefficients, 0))
 
 
 def sample_linear_preference() -> np.ndarray:
@@ -37,31 +37,45 @@ def sample_linear_preference() -> np.ndarray:
     return np.concatenate((w01, pref))
 
 
-def sample_thresholds() -> np.ndarray:
+def sample_thresholds() -> Tuple[np.ndarray, np.ndarray]:
     """
-    Samples a 6-long vector of thresholds for the gathering environment.
-    Each threshold is randomly sampled 
-    exception of the first two entries which are fixed at -1 and -5. They respectively signal
+    Samples a 6-long vector of thresholds for the gathering environment and a 6-long 
+    vector of coefficients to be applied once the thresholds are exceeded.
+    All thresholds and coefficients are sampled at random with the exception of the first two entries
+    which are fixed at a threshold of 0 and coefficients of  -1 and -5. They respectively signal
     the punishment for taking a further time-step and the punishment for hitting a wall.
     """
-    # The 4 entries of thresholds are for (respectively): Green, Red, Yellow, Other agent taking red
-    thresholds = np.random.choice(np.arange(0, 5, dtype=np.float32), size=4)
+    # The 4 entries of thresholds and coefficients are for (respectively): Green, Red, Yellow, Other agent taking red
+    thresholds = np.random.choice(np.arange(0, 4, dtype=np.float32), size=4)
+    coefficients = np.random.choice(np.arange(-4, 5, dtype=np.float32), size=4)*5
+    
+    # An environment with a negative preference vector will simply stop the episode after the first step.
+    # It is therefore pointless to sample such a vector.
+    if np.all(coefficients <= 0):
+        return sample_thresholds()
+    
     w01 = np.array([-1, -5], dtype=np.float32)
-    return np.concatenate((w01, thresholds))
+    return np.concatenate(([0, 0], thresholds)).astype(np.float32), np.concatenate((w01, coefficients))
 
 
-def sample_utility(utility_type: str = 'linear', utility_repr: np.ndarray = None) -> Tuple[np.ndarray, UtilityFunction]:
+def sample_utility(utility_type: str = 'linear', utility_repr: Optional[np.ndarray] = None) -> Tuple[np.ndarray, np.ndarray, UtilityFunction]:
+    """
+    Samples a utility function of the required utility_type (or constructs one if a utility_repr is provided).
+    
+    Returns a 3-tuple with the utility's representation for the agent, for the environment and a partial version 
+            of the utility function 
+    """
     if utility_type == 'linear':
         if utility_repr is not None:
             # Preferences are in range [-20, 20] we normalize them to the range [-0.5, 0.5] for the agent's represantation
-            return utility_repr/40, partial(linear_utility, weights=utility_repr)
+            return utility_repr/40, utility_repr, partial(linear_utility, weights=utility_repr)
         weights = sample_linear_preference()
         # Preferences are in range [-20, 20] we normalize them to the range [-0.5, 0.5] for the agent's represantation
-        return weights/40, partial(linear_utility, weights=weights)
+        return weights/40, weights, partial(linear_utility, weights=weights)
     elif utility_type == 'threshold':
         if utility_repr is not None:
-            return utility_repr, partial(threshold_utility, thresholds=utility_repr)
-        thresholds = sample_thresholds()
-        return thresholds, partial(threshold_utility, thresholds=thresholds)
+            return utility_repr[0], utility_repr[1], partial(threshold_utility, thresholds=utility_repr[0], coefficients=utility_repr[1])
+        thresholds, coefficients = sample_thresholds()
+        return np.array([thresholds, coefficients]), coefficients, partial(threshold_utility, thresholds=thresholds, coefficients=coefficients)
     
     raise ValueError('Expected argument "utility_type" to be a string representing a valid implemented utility')
