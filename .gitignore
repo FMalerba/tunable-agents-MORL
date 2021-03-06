@@ -130,3 +130,6 @@ dmypy.json
 
 # Yapf formatting configuration
 .style.yapf
+
+# Results from the jupyter notebook analysis
+jupyter_notebooks/results
