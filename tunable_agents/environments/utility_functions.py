@@ -28,6 +28,11 @@ def sample_linear_preference() -> np.ndarray:
     """
     # The 4 entries of pref are the preference for (respectively): Green, Red, Yellow, Other agent taking red
     pref = np.random.choice(np.arange(-4, 5, dtype=np.float32), size=4)*5
+    # An environment with a negative preference vector will simply stop the episode after the first step.
+    # It is therefore pointless to sample such a vector.
+    if np.all(pref <= 0):
+        return sample_linear_preference()
+    
     w01 = np.array([-1, -5], dtype=np.float32)
     return np.concatenate((w01, pref))
 
