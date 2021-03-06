@@ -1,28 +1,35 @@
-import os
-import time
-from typing import Callable
+
+#import tracemalloc
+
+#tracemalloc.start()
+#prev_snapshot = tracemalloc.take_snapshot()
 
 from absl import app
 from absl import flags
 from absl import logging
 
+from datetime import datetime
 import gin
-from tunable_agents import utility
-import tensorflow as tf
-from tf_agents.drivers import dynamic_episode_driver
-from tf_agents.environments import tf_py_environment
-from tf_agents.replay_buffers import tf_uniform_replay_buffer
-from tf_agents.eval import metric_utils
-from tf_agents.metrics import tf_metrics
-from tf_agents.utils import common
-from tf_agents.policies import policy_saver
+import matplotlib.pyplot as plt
+from matplotlib.cm import get_cmap
+import matplotlib as mpl
+import numpy as np
+import os
+import time
 
-gpus = tf.config.experimental.list_physical_devices('GPU')
-tf.config.experimental.set_memory_growth(gpus[0], True)
+
+from tunable_agents import utility, agent
+import tensorflow as tf
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+from tf_agents.environments import py_environment
+
+
+mpl.rcParams['agg.path.chunksize'] = 1_000      # Needed to avoid a matplotlib backend error when plotting high dpi images
+#gpus = tf.config.experimental.list_physical_devices('GPU')
+#tf.config.experimental.set_memory_growth(gpus[0], True)
 
 flags.DEFINE_string('root_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
                     'Root directory for writing logs/summaries/checkpoints.')
-flags.DEFINE_bool('XLA_flag', True, "Whether to use XLA or not. Can't be True when running on Windows")
 flags.DEFINE_multi_string('gin_files', [], 'List of paths to gin configuration files (e.g.'
                           '"configs/hanabi_rainbow.gin").')
 flags.DEFINE_multi_string(
@@ -33,263 +40,192 @@ FLAGS = flags.FLAGS
 
 
 @gin.configurable(allowlist=['collect_episodes'])
-def collection_step(driver: dynamic_episode_driver.DynamicEpisodeDriver, collect_episodes: int) -> None:
+def collection_step(env: py_environment.PyEnvironment, tf_agent: agent.DQNAgent,
+                    replay_memory: agent.ReplayMemory, reward_tracker: agent.RewardTracker,
+                    collect_episodes: int) -> None:
     """Samples transitions with the given Driver."""
     if not collect_episodes:
         return
 
-    print('Sampling {} episodes with the Driver'.format(collect_episodes))
+    #print('Sampling {} episodes'.format(collect_episodes))
     start_time = time.time()
-    driver.run(num_episodes=collect_episodes)
-    print('Finished sampling with the Driver, it took {} seconds for {} episodes\n'.format(
-        time.time() - start_time, collect_episodes))
+    for _ in range(collect_episodes):
+        # Reset env
+        ts = env.reset()
+        observations = ts.observation
+        
+        episode_reward = 0
+        done = False
+        while not done:
+            action = tf_agent.epsilon_greedy_policy(observations)
+            ts = env.step(action)
+            next_obs, reward, done = ts.observation, ts.reward, ts.is_last()
+            
+            replay_memory.append((observations['state_obs'], action, reward,
+                                  next_obs['state_obs'], done, observations['utility_representation']))
+            observations = next_obs
+            
+            episode_reward += reward
+                    
+        reward_tracker.append(episode_reward)
+    
+    #print('Finished sampling, it took {} seconds for {} episodes\n'.format(
+    #    time.time() - start_time, collect_episodes))
+    
+    return episode_reward
 
 
-@gin.configurable(allowlist=[])
-def training_step(agent_train_function: Callable,
-                  replay_buffer: tf_uniform_replay_buffer.TFUniformReplayBuffer, train_steps: int) -> None:
+@gin.configurable(allowlist=["batch_size", "train_steps"])
+def training_step(tf_agent: agent.DQNAgent, replay_memory: agent.ReplayMemory,
+                  batch_size: int, train_steps: int) -> None:
     if not train_steps:
         return
-    """
-    TODO Performance Optimization: Try out different batch sizes (TF usually recommends higher batch size) 
-        and see how this influences performance, keeping track of possible differences in RAM/VRAM requirements.
-        To do this properly the variable train_steps_per_epoch should be changed appropriately (e.g. double
-        the batch size --> half the train_steps), but it would be nice to also check that this behaves
-        as expected and doesn't impact per-epoch-learning. Per-epoch-learning is an abstract metric I just
-        invented that would tell you how much better a model got after an epoch... Essentially one should
-        check that the agent manages to reach the same level of performance (measured perhaps in 
-        average_return_per_episode == number of fireworks placed) at the same epoch (more or less) even if
-        you do this thing of doubling batch_size and halving train_steps_per_epoch.
-    """
-    # Dataset generates trajectories with shape [Bx2x...]
-    dataset = replay_buffer.as_dataset().prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
-    print('Starting partial training of Agent from Replay Buffer' '\nCounting Steps:')
-    # Commenting out losses (and all their relevant code) to try and see if they are responsible for an observed memory leak.
-    # No feedback available yet on whether this is the case or not
-    # losses = tf.TensorArray(tf.float32, size=steps)
-    c = 0
+    #print('Starting partial training of Agent from Replay Buffer' '\nCounting Steps:')
+    
     start_time = time.time()
-    for data in dataset:
+    for c in range(train_steps):
         if c % (train_steps / 10) == 0 and c != 0:
+            pass
             #tf.summary.scalar("loss_agent", tf.math.reduce_mean(losses.stack()), step=train_step)
-            print("{}% completed with {} steps done".format(int(c / train_steps * 100), c))
-        if c == train_steps:
-            break
-        experience, data_info = data
-        """
-        FIXME tensorflow documentation at https://www.tensorflow.org/tensorboard/migrate states that
-            default_writers do not cross the tf.function boundary and should instead be called as default
-            inside the tf.function. For now our code works because on the first run of the training function
-            the code is run in non-graph mode and thus "sees" the writer (and can then use it even in subsequent
-            graph-mode executions). This will stop working either if we start to export the compiled functions
-            so that we don't have the first "pythonic" run of them or if for some reason we change the file_writer
-            during execution. Should the summary writer be passed to the agent training function so that it can be set 
-            as default from inside the boundary of tf.function? How does TF-Agent solve this issue?
-        """
+            #print("{}% completed with {} steps done".format(int(c / train_steps * 100), c))
+        experiences = replay_memory.sample(batch_size)
+        tf_agent.training_step(experiences)
 
-        # losses = losses.write(c, agent_train_function(experience=experience).loss)
-        loss_agent_info = agent_train_function(experience=experience)
-        c += 1
+    #print("Ended epoch training for agent, it took {}".format(time.time() - start_time))
 
-    # losses = losses.stack()
-    print("Ended epoch training for agent, it took {}".format(time.time() - start_time))
+
+@gin.configurable
+def plot_learning_curve(reward_tracker: agent.RewardTracker, average_reward_window: int,
+                        image_path=None, csv_path=None):
+        """
+        Plot the rewards per episode collected during training
+        """
+        reward_data = reward_tracker.get_reward_data()
+        x = reward_data[:,0]
+        y = reward_data[:,1]
+        
+        # Save raw reward data
+        if csv_path:
+            np.savetxt(csv_path, reward_data, delimiter=",")
+        
+        # Compute moving average
+        tracker = agent.MovingAverage(maxlen=average_reward_window)
+        mean_rewards = np.zeros(len(reward_data))
+        for i, (_, reward) in enumerate(reward_data):
+            tracker.append(reward)
+            mean_rewards[i] = tracker.mean()
+        
+        # Create plot
+        colour_palette = get_cmap(name='Set1').colors
+        plt.figure(figsize=(13,8), dpi=400)
+        plt.plot(x, y, alpha=0.2, c=colour_palette[0])
+        plt.plot(x[average_reward_window//2:], mean_rewards[average_reward_window//2:], 
+                   c=colour_palette[0])
+        plt.xlabel('Episode')
+        plt.ylabel('Reward per Episode')
+        plt.grid(True, ls=':')
+        
+        # Save plot
+        if image_path:
+            plt.savefig(image_path, dpi=400)
+        plt.close()
 
 
 @gin.configurable
 def train_eval(
         root_dir: str,
         experiment_name: str,
-        env_id: str,  # Used to identify a unique environment for RB reuse
         num_iterations: int,
+        target_update_period: int,
         # Params for eval
         eval_interval: int,
         num_eval_episodes: int,
         # Param for checkpoints
         checkpoint_interval: int,
-        shared_RB: bool = False,
-        XLA_flag: bool = True  # When running on Windows machine, should be set to False
+        replay_size: int,
+        #prev_snapshot
 ):
     """A simple train and eval for DQN."""
     root_dir = os.path.expanduser(root_dir)
     experiment_dir = os.path.join(root_dir, experiment_name)
-    train_dir = os.path.join(experiment_dir, 'train')
-    eval_dir = os.path.join(experiment_dir, 'eval')
+    model_dir = os.path.join(experiment_dir, 'model')
+    plots_dir = os.path.join(experiment_dir, 'plots')
+    model_path = os.path.join(model_dir, 'dqn_model.h5')
+    image_path = os.path.join(plots_dir, 'reward_plot.png')
+    csv_path = os.path.join(plots_dir, 'reward_data.csv')
+    
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
+        os.makedirs(plots_dir)
 
-    # The summary writers are not in synch with checkpointing and tensorboard will give
-    # wierd plots if code is stopped and rebooted from checkpoint. To solve this, one can
-    # increase the flush_millis param by a lot. This goes at the expense of high RAM usage.
-    train_summary_writer = tf.summary.create_file_writer(train_dir, flush_millis=10000)
-    train_summary_writer.set_as_default()
-    eval_summary_writer = tf.summary.create_file_writer(eval_dir, flush_millis=10000)
-
-    # This line is commented out to check whether this is responsible for unusual memory errors
-    # on the server.. No feedback on this issue yet.
-    # tf.profiler.experimental.server.start(6008)
-    """
-    TODO use ParallelPyEnvironment to run envs in parallel and see how much we can speed up.
-        See: https://www.youtube.com/watch?v=U7g7-Jzj9qo&list=TLPQMDkwNDIwMjB-xXfzXt3B5Q&index=2 
-        at minute 26:50
-        Note: it is more than likely that batching the environment might require also passing a 
-        different batch_size parameter to the metrics and the replay buffer. Also note that the
-        replay buffer actually stores batch_size*max_length frames, so for example right now to
-        have a RB with 50k capacity you would have batch_size=1, max_length=50k. This is probaably
-        done for parallelization and memory access issues, where one wants to be sure that the
-        parallel runs don't access the same memory slots of the RB... As such if you want to run
-        envs in parallel and keep RB capacity fixed you should divide the desired capacity by batch_size
-        and use that as max_length parameter. Btw, a frame stored by the RB can be variable;
-        if num_steps=2 (as right now) then a frame is  [time_step, action, next_time_step] 
-        (where time_step has all info including last reward). If you increase num_steps then 
-        it's obvious how a frame would change, and also how this affects the *actual* number of transitions
-        that the RB is storing.
-    """
+    tf.profiler.experimental.server.start(6008)
+    
     # create the enviroment
     env = utility.create_environment()
-    tf_env = tf_py_environment.TFPyEnvironment(env)
-    eval_py_env = tf_py_environment.TFPyEnvironment(utility.create_environment())
-
-    train_step = tf.Variable(0, trainable=False, name='global_step', dtype=tf.int64)
-
     epoch_counter = tf.Variable(0, trainable=False, name='Epoch', dtype=tf.int64)
-
     # Epsilon implementing decaying behaviour for the two agents
     decaying_epsilon = utility.decaying_epsilon(step=epoch_counter)
-    """
-    TODO Performance Improvement: "When training on GPUs, make use of the TensorCore. GPU kernels use
-        the TensorCore when the precision is fp16 and input/output dimensions are divisible by 8 or 16 (for int8)"
-        (from https://www.tensorflow.org/guide/profiler#improve_device_performance). Maybe consider decreasing
-        precision to fp16 and possibly compensating with increased model complexity to not lose performance?
-        I mean if this allows us to use TensorCore then maybe it is worthwhile (computationally) to increase 
-        model size and lower precision. Need to test what the impact on agent performance is.
-        See https://www.tensorflow.org/guide/keras/mixed_precision for more info
-    """
     # create an agent and a network
-    tf_agent = utility.create_agent(environment=tf_env,
-                                    decaying_epsilon=decaying_epsilon,
-                                    train_step_counter=train_step)
-
+    tf_agent = agent.DQNAgent(epsilon=decaying_epsilon,
+                              utility_repr_shape=env.observation_spec()['utility_representation'].shape)
     # replay buffer
-    replay_buffer = utility.create_replay_buffer(data_spec=tf_agent.collect_data_spec,
-                                                 batch_size=tf_env.batch_size)
-
-    # metrics
-    train_metrics = [
-        tf_metrics.NumberOfEpisodes(),
-        tf_metrics.EnvironmentSteps(),
-        tf_metrics.AverageReturnMetric(),
-        tf_metrics.AverageEpisodeLengthMetric(),
-    ]
-
-    # replay buffer update for the driver
-    replay_observer = [replay_buffer.add_batch]
-
-    with gin.config_scope('eval_metrics'):
-        eval_metrics = [
-            tf_metrics.AverageReturnMetric(),
-            tf_metrics.AverageEpisodeLengthMetric(),
-        ]
-
-    # I create the Driver only once instead of recreating it at the start of every epoch
-    # This is not a problem only because the agent's collect_policy has the agent's network
-    # and its tensors will update together with the agent's on agent.train() calls.
-    # If the agent has a policy that doesn't depend only on Tensors, one must recreate a new
-    # policy after every epoch and create a new Driver to feed this to.
-    collect_driver = dynamic_episode_driver.DynamicEpisodeDriver(tf_env,
-                                                                 tf_agent.collect_policy,
-                                                                 observers=replay_observer + train_metrics)
-
-    # checkpointer:
-    train_checkpointer = common.Checkpointer(ckpt_dir=os.path.join(experiment_dir, 'checkpoints', 'train'),
-                                             max_to_keep=1,
-                                             agent=tf_agent,
-                                             train_step=train_step,
-                                             epoch_counter=epoch_counter,
-                                             metrics=metric_utils.MetricsGroup(
-                                                 train_metrics, 'train_metrics'))
+    replay_memory = agent.ReplayMemory(maxlen=replay_size)
+    reward_tracker = agent.RewardTracker()
     
-    tf_policy_saver = policy_saver.PolicySaver(policy=tf_agent.policy)
-
-    if shared_RB:
-        rb_checkpoint_dir = os.path.join(root_dir, 'replay_buffers', env_id)
-    else:
-        rb_checkpoint_dir = os.path.join(experiment_dir, 'checkpoints', 'rb')
-    rb_checkpointer = common.Checkpointer(ckpt_dir=rb_checkpoint_dir,
-                                          max_to_keep=1,
-                                          replay_buffer=replay_buffer)
-    """
-    FIXME Tensorflow documentation of tf.function (https://www.tensorflow.org/api_docs/python/tf/function)
-        states that autograph parameter should be set to True for Data-dependent control flow. What does this
-        mean? Is our training function not Data-dependent? Currently common.function (which is a wrapper on the 
-        tf.function wrapper) passes autograph=False by default.
-    TODO Maybe pass experimental_compile=True to common.function? Maybe it's not needed because 
-        later in the code we use tf.config.optimizer.set_jit(True) which enables XLA in general?
-        Who knows, test and look at performance I would say. Another thing to notice is that
-        experimental_compile=True would have the added bonus of telling us if indeed it manages
-        to compile or not since "The experimental_compile API has must-compile semantics: either 
-        the entire function is compiled with XLA, or an errors.InvalidArgumentError exception is thrown."
-        See: https://www.tensorflow.org/xla#explicit_compilation_with_tffunction
-    TODO common.function passes the parameter experimental_relax_shapes=True by default. Maybe 
-        consider instead passing it as False for efficiency... This is most likely linked to the
-        input_signature TODO that follows
-    TODO (low priority) add an input_signature parameter so that tf.function knows what to expect
-        and won't adapt to the input if something strange happens (which it really shouldn't happen)
-    """
-    # Compiled version of training functions (much faster)
-    agent_train_function = common.function(tf_agent.train)
-
-    # Care that JIT only improves performance if stuff doesn't change shapes often
-    tf.config.optimizer.set_jit(XLA_flag)
-
+    start_time = datetime.now()
+    
+    # Initial collection
     with gin.config_scope('initial_step'):
-        # Initial collection
-        collection_step(driver=collect_driver)
-
-        # Initial training in case the RB was pre-loaded with a checkpoint
-        training_step(agent_train_function=agent_train_function,
-                    replay_buffer=replay_buffer)
+        collection_step(env=env, tf_agent=tf_agent, replay_memory=replay_memory, reward_tracker=reward_tracker)
 
     for _ in range(num_iterations):
         epoch_counter.assign_add(1)
-        print('EPOCH {}'.format(epoch_counter.numpy()))
+        # print('EPOCH {}'.format(epoch_counter.numpy()))
         tf.summary.scalar(name='Epsilon', data=decaying_epsilon(), step=epoch_counter)
 
-        collection_step(driver=collect_driver)
+        episode_reward = collection_step(env=env, tf_agent=tf_agent,
+                                         replay_memory=replay_memory, reward_tracker=reward_tracker)
 
-        training_step(agent_train_function=agent_train_function, replay_buffer=replay_buffer)
+        training_step(tf_agent=tf_agent,
+                      replay_memory=replay_memory)
+        
+        avg_reward = reward_tracker.mean()
+        tf.summary.scalar(name='Average Reward', data=avg_reward, step=epoch_counter)
 
-
-        for train_metric in train_metrics:
-            train_metric.tf_summaries(train_step=epoch_counter, step_metrics=train_metrics[:2])
-
-        train_metrics[2].reset()
-        train_metrics[3].reset()
-        train_summary_writer.flush()    # Comment this out when synching tensorboard with checkpoints
-
-        # Checkpointing and flushing summaries
+        print("\rTime: {}, Episode: {}, Reward: {}, Avg Reward {}, eps: {:.3f}".format(
+            datetime.now() - start_time, epoch_counter.numpy(), episode_reward, avg_reward, decaying_epsilon().numpy()), end="")
+        
+        # Copy weights from main model to target model
+        if epoch_counter.numpy() % target_update_period == 0:
+            tf_agent.update_target_model()
+        
+        # Checkpointing
         if epoch_counter.numpy() % checkpoint_interval == 0:
-            train_summary_writer.flush()
-            train_checkpointer.save(global_step=epoch_counter.numpy())
-            rb_checkpointer.save(global_step=epoch_counter.numpy())
-            tf_policy_saver.save(export_dir=os.path.join(experiment_dir, 'policy'))
+            tf_agent.save_model(model_path)
+            plot_learning_curve(reward_tracker=reward_tracker,
+                                image_path=image_path, 
+                                csv_path=csv_path)
 
         # Evaluation Run
         if epoch_counter.numpy() % eval_interval == 0:
-            eval_py_policy = tf_agent.policy
-            metric_utils.eager_compute(eval_metrics,
-                                       eval_py_env,
-                                       eval_py_policy,
-                                       num_episodes=num_eval_episodes,
-                                       train_step=epoch_counter,
-                                       summary_writer=eval_summary_writer,
-                                       summary_prefix='Metrics')
-            eval_summary_writer.flush()
-            eval_metrics[0].reset()
-            eval_metrics[1].reset()
+            pass
+        '''
+        if epoch_counter.numpy() % 1050 == 0:
+            new_snapshot = tracemalloc.take_snapshot()
+            top_stats = new_snapshot.compare_to(prev_snapshot, 'filename')
+            print('\n', len(top_stats))
+            for stat in top_stats[:30]:
+                print(stat)
+            
+            print('                                                             ')
+            prev_snapshot = new_snapshot
+        '''
 
 
 def main(_):
     logging.set_verbosity(logging.INFO)
     utility.load_gin_configs(FLAGS.gin_files, FLAGS.gin_bindings)
-    train_eval(root_dir=FLAGS.root_dir, XLA_flag=FLAGS.XLA_flag)
+    train_eval(root_dir=FLAGS.root_dir) #prev_snapshot=prev_snapshot)
 
 
 if __name__ == '__main__':
