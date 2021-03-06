@@ -71,7 +71,7 @@ def sample_utility(utility_type: str = 'linear', utility_repr: Optional[np.ndarr
             return utility_repr/40, utility_repr, partial(linear_utility, weights=utility_repr)
         weights = sample_linear_preference()
         # Preferences are in range [-20, 20] we normalize them to the range [-0.5, 0.5] for the agent's represantation
-        return weights/40, weights, partial(linear_utility, weights=weights)
+        return weights[2:]/40, weights, partial(linear_utility, weights=weights)
     elif utility_type == 'threshold':
         if utility_repr is not None:
             return utility_repr[0], utility_repr[1], partial(threshold_utility, thresholds=utility_repr[0], coefficients=utility_repr[1])
