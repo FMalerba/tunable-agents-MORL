@@ -119,6 +119,7 @@ def plot_learning_curve(reward_tracker: agent.RewardTracker, average_reward_wind
 def train_eval(
         root_dir: str,
         experiment_name: str,
+        model_name: str,
         num_iterations: int,
         target_update_period: int,
         # Params for eval
@@ -131,7 +132,7 @@ def train_eval(
 ):
     """A simple train and eval for DQN."""
     root_dir = os.path.expanduser(root_dir)
-    experiment_dir = os.path.join(root_dir, experiment_name)
+    experiment_dir = os.path.join(root_dir, experiment_name + "_" + model_name)
     model_dir = os.path.join(experiment_dir, 'model')
     plots_dir = os.path.join(experiment_dir, 'plots')
     model_path = os.path.join(model_dir, 'dqn_model.h5')
