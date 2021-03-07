@@ -1,30 +1,34 @@
 # Preprocessing layers for Image Observations
-first_layer/Conv2D.filters = 256
-first_layer/Conv2D.kernel_size = (3, 3)
-first_layer/Conv2D.activation = 'relu'
-first_layer/Conv2D.name = "Convolutional"
-first_layer/Dropout.rate = 0.2
-first_layer/Dropout.name = "Dropout"
+layer_1/Conv2D.filters = 256
+layer_1/Conv2D.kernel_size = (3, 3)
+layer_1/Conv2D.activation = 'relu'
+layer_1/Conv2D.name = "Convolutional_1"
+layer_2/Dropout.rate = 0.2
+layer_2/Dropout.name = "Dropout_2"
 
-second_layer/Conv2D.filters = 256
-second_layer/Conv2D.kernel_size = (3, 3)
-second_layer/Conv2D.activation = 'relu'
-second_layer/Conv2D.name = "Convolutional_2"
-second_layer/Dropout.rate = 0.2 
-second_layer/Dropout.name = "Dropout_2"
+layer_3/Conv2D.filters = 256
+layer_3/Conv2D.kernel_size = (3, 3)
+layer_3/Conv2D.activation = 'relu'
+layer_3/Conv2D.name = "Convolutional_2"
+layer_4/Dropout.rate = 0.2 
+layer_4/Dropout.name = "Dropout_2"
 
 # Postprocessing layers for flattened image encodings concatenated with any other vector inputs 
-dense_1/Dense.units = 64
-dense_1/Dense.activation = 'relu'
-dense_1/Dense.name = "Dense_1"
-dense_2/Dense.units = 64
-dense_2/Dense.activation = 'relu'
-dense_2/Dense.name = "Dense_2"
+layer_5/Dense.units = 64
+layer_5/Dense.activation = 'relu'
+layer_5/Dense.name = "Dense_1"
+layer_6/Dropout.rate = 0.2 
+layer_6/Dropout.name = "Dropout_3"
+layer_7/Dense.units = 64
+layer_7/Dense.activation = 'relu'
+layer_7/Dense.name = "Dense_2"
+layer_8/Dropout.rate = 0.2 
+layer_8/Dropout.name = "Dropout_4"
 
 output/Dense.units = 5
 output/Dense.name = "Q_values"
 
 
-build_model.image_preprocessing_layers = [@first_layer/Conv2D(), @first_layer/Dropout(), @second_layer/Conv2D(), @second_layer/Dropout(), @Flatten()]
-build_model.postprocessing_layers = [@dense_1/Dense(), @dense_2/Dense(), @output/Dense()]
+build_model.image_preprocessing_layers = [@layer_1/Conv2D(), @layer_2/Dropout(), @layer_3/Conv2D(), @layer_4/Dropout(), @Flatten()]
+build_model.postprocessing_layers = [@layer_5/Dense(), @layer_6/Dropout(), @layer_7/Dense(), @layer_8/Dropout(), @output/Dense()]
 
