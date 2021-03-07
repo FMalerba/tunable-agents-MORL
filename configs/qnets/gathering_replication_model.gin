@@ -1,0 +1,30 @@
+# Preprocessing layers for Image Observations
+first_layer/Conv2D.filters = 256
+first_layer/Conv2D.kernel_size = (3, 3)
+first_layer/Conv2D.activation = 'relu'
+first_layer/Conv2D.name = "Convolutional"
+first_layer/Dropout.rate = 0.2
+first_layer/Dropout.name = "Dropout"
+
+second_layer/Conv2D.filters = 256
+second_layer/Conv2D.kernel_size = (3, 3)
+second_layer/Conv2D.activation = 'relu'
+second_layer/Conv2D.name = "Convolutional_2"
+second_layer/Dropout.rate = 0.2 
+second_layer/Dropout.name = "Dropout_2"
+
+# Postprocessing layers for flattened image encodings concatenated with any other vector inputs 
+dense_1/Dense.units = 64
+dense_1/Dense.activation = 'relu'
+dense_1/Dense.name = "Dense_1"
+dense_2/Dense.units = 64
+dense_2/Dense.activation = 'relu'
+dense_2/Dense.name = "Dense_2"
+
+output/Dense.units = 5
+output/Dense.name = "Q_values"
+
+
+build_model.image_preprocessing_layers = [@first_layer/Conv2D(), @first_layer/Dropout(), @second_layer/Conv2D(), @second_layer/Dropout(), @Flatten()]
+build_model.postprocessing_layers = [@dense_1/Dense(), @dense_2/Dense(), @output/Dense()]
+

@@ -1,5 +1,5 @@
 # Experiment
-train_eval.experiment_name = 'gathering_replication_3'                # Used to name the folder for logs/summaries/checkpoints
+train_eval.experiment_name = 'gathering_replication'                # Used to name the folder for logs/summaries/checkpoints
 
 # Running and Training process
 initial_step/collection_step.collect_episodes = 50

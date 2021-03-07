@@ -1,12 +1,12 @@
 import numpy as np
-from typing import Callable, Dict, Tuple
+from typing import Callable, Dict, List, Tuple
 
 import gin
 
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras.layers import Input, Conv2D, Dropout, Dense, Flatten, Concatenate
-
+from tensorflow.keras.layers import Input, Concatenate
+from tf_agents.typing.types import ArraySpec
 from collections import deque # Used for replay buffer and reward tracking
 
 Observation = Dict[str, np.ndarray]
@@ -73,15 +73,11 @@ class MovingAverage(deque):
 @gin.configurable()
 class DQNAgent:
     
-    def __init__(self, epsilon: Callable[[], float], utility_repr_shape: Tuple[int], learning_rate: float=1e-4, gamma: float=0.99):
+    def __init__(self, epsilon: Callable[[], float], obs_spec: Dict[str, ArraySpec], learning_rate: float=1e-4, gamma: float=0.99):
         self._epsilon = epsilon
-        self._utility_repr_shape = utility_repr_shape
+        self._obs_spec = obs_spec
         self._learning_rate = learning_rate     # Learning rate
         self._gamma = gamma     # Discount
-        
-        image_size = (8, 8, 3)
-        self._state_obs_shape = (8, 8, 9)
-        self._output_size = 5
         
         # Build both models
         self._model = self._build_model()
@@ -91,36 +87,32 @@ class DQNAgent:
         
         self._learning_plot_initialised = False
         #self.env_penalty_sign = env.penalty_sign
-        
-    def _build_model(self) -> keras.Model:
+    
+    @gin.configurable(name_or_fn='build_model')
+    def _build_model(self, image_preprocessing_layers: List[keras.layers.Layer], postprocessing_layers: List[keras.layers.Layer]) -> keras.Model:
         """
         Construct the DQN model.
-        """
-        # image of size 8x8 with 3 channels (RGB)
-        image_input = Input(shape=self._state_obs_shape)
-        # preference weights
-        utility_repr_input = Input(shape=self._utility_repr_shape) # 4 weights
-
-        # Define Layers
-        x = image_input
-        x = Conv2D(256, (3, 3), activation='relu')(x)
-        x = Dropout(0.2)(x)
-        x = Conv2D(256, (3, 3), activation='relu')(x)
-        x = Dropout(0.2)(x)
-        x = Flatten()(x)
-        x = Concatenate()([x, utility_repr_input])
-        # x = Dense(128, activation='relu')(x)
-        # x = Dropout(0.2)(x)
-        x = Dense(64, activation='relu')(x)
-        x = Dropout(0.2)(x)
-        x = Dense(64, activation='relu')(x)
-        x = Dropout(0.2)(x)
         
-        x = Dense(5)(x)
+        Args:
+            image_preprocessing_layers: List of Keras layers to be applied to the image input coming from the gathering environment
+            postprocessing_layers: List of Keras layers to be applied on the concatenation of the flattened image encodings and 
+                    any other input from the environment.
+                    
+        The arguments are provided via Gin Config usually.
+        """
+        x = image_input = Input(shape=self._obs_spec["state_obs"].shape)
+        for layer in image_preprocessing_layers:
+            x = layer(x)
+        
+        additional_inputs = [Input(shape=self._obs_spec[key].shape) for key in (self._obs_spec.keys() - ["state_obs"])]
+        x = Concatenate()([x] + additional_inputs)
+        
+        for layer in postprocessing_layers:
+            x = layer(x)
+        
         outputs = x
         
-        # Build full model
-        model = keras.Model(inputs=[image_input, utility_repr_input], outputs=outputs)
+        model = keras.Model(inputs=[image_input] + additional_inputs, outputs=outputs)
         
         # Define optimizer and loss function
         self._optimizer = keras.optimizers.Adam(lr=self._learning_rate)

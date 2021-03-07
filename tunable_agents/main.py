@@ -151,7 +151,7 @@ def train_eval(
     decaying_epsilon = utility.decaying_epsilon(step=epoch_counter)
     # create an agent and a network
     tf_agent = agent.DQNAgent(epsilon=decaying_epsilon,
-                              utility_repr_shape=env.observation_spec()['utility_representation'].shape)
+                              obs_spec=env.observation_spec())
     # replay buffer
     replay_memory = agent.ReplayMemory(maxlen=replay_size)
     reward_tracker = agent.RewardTracker()
@@ -193,23 +193,12 @@ def train_eval(
         # Evaluation Run
         if epoch_counter.numpy() % eval_interval == 0:
             pass
-        '''
-        if epoch_counter.numpy() % 1050 == 0:
-            new_snapshot = tracemalloc.take_snapshot()
-            top_stats = new_snapshot.compare_to(prev_snapshot, 'filename')
-            print('\n', len(top_stats))
-            for stat in top_stats[:30]:
-                print(stat)
-            
-            print('                                                             ')
-            prev_snapshot = new_snapshot
-        '''
 
 
 def main(_):
     logging.set_verbosity(logging.INFO)
     utility.load_gin_configs(FLAGS.gin_files, FLAGS.gin_bindings)
-    train_eval(root_dir=FLAGS.root_dir) #prev_snapshot=prev_snapshot)
+    train_eval(root_dir=FLAGS.root_dir)
 
 
 if __name__ == '__main__':
