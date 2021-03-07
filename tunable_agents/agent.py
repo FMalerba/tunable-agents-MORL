@@ -78,6 +78,7 @@ class DQNAgent:
         self._obs_spec = obs_spec
         self._learning_rate = learning_rate     # Learning rate
         self._gamma = gamma     # Discount
+        self._output_size = 5
         
         # Build both models
         self._model = self._build_model()
