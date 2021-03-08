@@ -1,0 +1,19 @@
+include "qnets/gathering_replication_model.gin"
+
+train_eval.model_name = "128-128-64_model"
+
+# Postprocessing layers for flattened image encodings concatenated with any other vector inputs 
+layer_5/Dense.units = 128
+layer_7/Dense.units = 128
+layer_9/Dense.units = 64
+layer_9/Dense.activation = 'relu'
+layer_9/Dense.name = "Dense_3"
+layer_10/Dropout.rate = 0.2 
+layer_10/Dropout.name = "Dropout_5"
+
+
+build_model.postprocessing_layers = [@layer_5/Dense(), @layer_6/Dropout(),
+                                     @layer_7/Dense(), @layer_8/Dropout(),
+                                     @layer_9/Dense(), @layer_10/Dropout(),
+                                     @output/Dense()]
+
