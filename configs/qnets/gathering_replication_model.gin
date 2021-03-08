@@ -1,10 +1,12 @@
+train_eval.model_name = "64-64_model"
+
 # Preprocessing layers for Image Observations
 layer_1/Conv2D.filters = 256
 layer_1/Conv2D.kernel_size = (3, 3)
 layer_1/Conv2D.activation = 'relu'
 layer_1/Conv2D.name = "Convolutional_1"
 layer_2/Dropout.rate = 0.2
-layer_2/Dropout.name = "Dropout_2"
+layer_2/Dropout.name = "Dropout_1"
 
 layer_3/Conv2D.filters = 256
 layer_3/Conv2D.kernel_size = (3, 3)
