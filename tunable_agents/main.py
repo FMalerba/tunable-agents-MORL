@@ -53,8 +53,8 @@ def collection_step(env: py_environment.PyEnvironment, tf_agent: agent.DQNAgent,
             ts = env.step(action)
             next_obs, reward, done = ts.observation, ts.reward, ts.is_last()
             
-            replay_memory.append((observations['state_obs'], action, reward,
-                                  next_obs['state_obs'], done, observations['utility_representation']))
+            replay_memory.append((observations, action, reward,
+                                  next_obs, done))
             observations = next_obs
             
             episode_reward += reward

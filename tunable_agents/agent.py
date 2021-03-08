@@ -27,10 +27,16 @@ class ReplayMemory(deque):
         # Filter the batch from the deque
         batch = [self[index] for index in indices]
         # Unpach and create numpy arrays for each element type in the batch
-        states, actions, rewards, next_states, dones, weightss = [
+        states, actions, rewards, next_states, dones = [
                 np.array([experience[field_index] for experience in batch])
-                for field_index in range(6)]
-        return states, actions, rewards, next_states, dones, weightss
+                for field_index in range(5)]
+        states = tf.nest.map_structure(stack_wrapper, *states)
+        next_states = tf.nest.map_structure(stack_wrapper, *next_states)
+        return states, actions, rewards, next_states, dones
+
+
+def stack_wrapper(*structure):
+    return np.stack(structure, axis=0)
 
 
 @gin.configurable()
@@ -105,7 +111,7 @@ class DQNAgent:
         for layer in image_preprocessing_layers:
             x = layer(x)
         
-        additional_inputs = [Input(shape=self._obs_spec[key].shape) for key in (self._obs_spec.keys() - ["state_obs"])]
+        additional_inputs = [Input(shape=self._obs_spec[key].shape) for key in sorted(self._obs_spec.keys() - ["state_obs"])]
         x = Concatenate()([x] + additional_inputs)
         
         for layer in postprocessing_layers:
@@ -132,16 +138,18 @@ class DQNAgent:
         if np.random.rand() < self._epsilon():
             return np.random.choice(5)
         else:
-            Q_values = self._model.predict([observations["state_obs"][np.newaxis],
-                                            observations["utility_representation"][np.newaxis]])
+            Q_values = self._model.predict([observations["state_obs"][np.newaxis]] +
+                                           [observations[key][np.newaxis] for key in sorted(observations.keys() - ["state_obs"])]
+                                           )
             return np.argmax(Q_values)
     
     def greedy_policy(self, observations: Observation) -> int:
         """
         Select greedy action from model output based on current state.
         """
-        Q_values = self._model.predict([observations["state_obs"][np.newaxis],
-                                        observations["utility_representation"][np.newaxis]])
+        Q_values = self._model.predict([observations["state_obs"][np.newaxis]] +
+                                       [observations[key][np.newaxis] for key in sorted(observations.keys() - ["state_obs"])]
+                                       )
         return np.argmax(Q_values)
     
     def training_step(self, experiences):
@@ -152,10 +160,11 @@ class DQNAgent:
             [Accessed: 15/06/2020]
         """
         # Sample a batch of S A R S' from replay memory
-        states, actions, rewards, next_states, dones, weightss = experiences
+        states, actions, rewards, next_states, dones = experiences
         
         # Compute target Q values from 'next_states'
-        next_Q_values = self._target_model.predict([next_states, weightss])
+        next_Q_values = self._target_model.predict([next_states["state_obs"]] +
+                                                   [next_states[key] for key in sorted(next_states.keys() - ["state_obs"])])
         
         max_next_Q_values = np.max(next_Q_values, axis=1)
         target_Q_values = (rewards +
@@ -166,7 +175,8 @@ class DQNAgent:
         mask = tf.one_hot(actions, self._output_size) # Number of actions
         # Compute loss and gradient for predictions on 'states'
         with tf.GradientTape() as tape:
-            all_Q_values = self._model([states, weightss])
+            all_Q_values = self._model([states["state_obs"]] +
+                                       [states[key] for key in sorted(states.keys() - ["state_obs"])])
             Q_values = tf.reduce_sum(all_Q_values * mask, axis=1, 
                                      keepdims=True)
             loss = tf.reduce_mean(self._loss_fn(target_Q_values, Q_values))
