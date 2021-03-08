@@ -74,8 +74,8 @@ def sample_utility(utility_type: str = 'linear', utility_repr: Optional[np.ndarr
         return weights[2:]/40, weights, partial(linear_utility, weights=weights)
     elif utility_type == 'threshold':
         if utility_repr is not None:
-            return utility_repr[0], utility_repr[1], partial(threshold_utility, thresholds=utility_repr[0], coefficients=utility_repr[1])
+            return utility_repr[:,2:]/[[1],[40]], utility_repr[1], partial(threshold_utility, thresholds=utility_repr[0], coefficients=utility_repr[1])
         thresholds, coefficients = sample_thresholds()
-        return np.array([thresholds, coefficients]), coefficients, partial(threshold_utility, thresholds=thresholds, coefficients=coefficients)
+        return np.array([thresholds, coefficients/40])[:, 2:], coefficients, partial(threshold_utility, thresholds=thresholds, coefficients=coefficients)
     
     raise ValueError('Expected argument "utility_type" to be a string representing a valid implemented utility')
