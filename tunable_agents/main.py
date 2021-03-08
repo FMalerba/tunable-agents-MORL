@@ -117,9 +117,12 @@ def plot_learning_curve(reward_tracker: agent.RewardTracker, average_reward_wind
 
 @gin.configurable
 def train_eval(
+        # Params for experiment identification
         root_dir: str,
-        experiment_name: str,
-        model_name: str,
+        training_id: str,
+        model_id: str,
+        env_id: str,
+        # Params for training process
         num_iterations: int,
         target_update_period: int,
         # Params for eval
@@ -128,11 +131,10 @@ def train_eval(
         # Param for checkpoints
         checkpoint_interval: int,
         replay_size: int,
-        #prev_snapshot
 ):
     """A simple train and eval for DQN."""
     root_dir = os.path.expanduser(root_dir)
-    experiment_dir = os.path.join(root_dir, experiment_name + "_" + model_name)
+    experiment_dir = os.path.join(root_dir, "_".join([training_id, model_id, env_id]))
     model_dir = os.path.join(experiment_dir, 'model')
     plots_dir = os.path.join(experiment_dir, 'plots')
     model_path = os.path.join(model_dir, 'dqn_model.h5')
@@ -165,7 +167,6 @@ def train_eval(
 
     for _ in range(num_iterations):
         epoch_counter.assign_add(1)
-        # print('EPOCH {}'.format(epoch_counter.numpy()))
         tf.summary.scalar(name='Epsilon', data=decaying_epsilon(), step=epoch_counter)
 
         episode_reward = collection_step(env=env, tf_agent=tf_agent,

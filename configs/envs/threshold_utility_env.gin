@@ -1,4 +1,6 @@
 include "envs/gathering_replication_env.gin"
 
-GatheringWrapper.utility_repr_shape = (4, )
-GatheringWrapper.utility_type = 'linear'
+train_eval.env_id = "threshold-env"           # Used to name the folder for logs/summaries/checkpoints
+
+GatheringWrapper.utility_repr_shape = (8, )
+GatheringWrapper.utility_type = 'threshold'

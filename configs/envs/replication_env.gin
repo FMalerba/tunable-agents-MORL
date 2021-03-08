@@ -1,3 +1,5 @@
+train_eval.env_id = "replication-env"           # Used to name the folder for logs/summaries/checkpoints
+
 # Deterministic Agent
 HunterAgent.goal_object_idx = 3
 HunterAgent.initial_position = [7, 7]
