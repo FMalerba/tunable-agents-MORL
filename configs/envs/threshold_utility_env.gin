@@ -1,0 +1,4 @@
+include "envs/gathering_replication_env.gin"
+
+GatheringWrapper.utility_repr_shape = (4, )
+GatheringWrapper.utility_type = 'linear'

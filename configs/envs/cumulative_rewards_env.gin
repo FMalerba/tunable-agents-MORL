@@ -1,0 +1,3 @@
+include "envs/gathering_replication_env.gin"
+
+GatheringWrapper.cumulative_rewards_flag = True
