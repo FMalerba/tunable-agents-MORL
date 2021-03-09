@@ -134,7 +134,7 @@ def train_eval(
 ):
     """A simple train and eval for DQN."""
     root_dir = os.path.expanduser(root_dir)
-    experiment_dir = os.path.join(root_dir, "_".join([training_id, model_id, env_id]))
+    experiment_dir = os.path.join(root_dir, "_".join([model_id, env_id, training_id]))
     model_dir = os.path.join(experiment_dir, 'model')
     plots_dir = os.path.join(experiment_dir, 'plots')
     model_path = os.path.join(model_dir, 'dqn_model.h5')
