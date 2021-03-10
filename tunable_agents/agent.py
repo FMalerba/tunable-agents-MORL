@@ -107,11 +107,11 @@ class DQNAgent:
                     
         The arguments are provided via Gin Config usually.
         """
-        x = image_input = Input(shape=self._obs_spec["state_obs"].shape)
+        x = image_input = Input(shape=self._obs_spec["state_obs"].shape, name="state_obs")
         for layer in image_preprocessing_layers:
             x = layer(x)
         
-        additional_inputs = [Input(shape=self._obs_spec[key].shape) for key in sorted(self._obs_spec.keys() - ["state_obs"])]
+        additional_inputs = [Input(shape=self._obs_spec[key].shape, name=key) for key in sorted(self._obs_spec.keys() - ["state_obs"])]
         x = Concatenate()([x] + additional_inputs)
         
         for layer in postprocessing_layers:
