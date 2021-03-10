@@ -9,28 +9,11 @@ from matplotlib.cm import get_cmap
 import matplotlib as mpl
 import numpy as np
 import os
-import time
-
 
 from tunable_agents import utility, agent
 import tensorflow as tf
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 from tf_agents.environments import py_environment
 
-
-mpl.rcParams['agg.path.chunksize'] = 1_000      # Needed to avoid a matplotlib backend error when plotting high dpi images
-#gpus = tf.config.experimental.list_physical_devices('GPU')
-#tf.config.experimental.set_memory_growth(gpus[0], True)
-
-flags.DEFINE_string('root_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
-                    'Root directory for writing logs/summaries/checkpoints.')
-flags.DEFINE_multi_string('gin_files', [], 'List of paths to gin configuration files (e.g.'
-                          '"configs/hanabi_rainbow.gin").')
-flags.DEFINE_multi_string(
-    'gin_bindings', [], 'Gin bindings to override the values set in the config files '
-    '(e.g. "train_eval.num_iterations=100").')
-
-FLAGS = flags.FLAGS
 
 
 @gin.configurable(allowlist=['collect_episodes'])
@@ -75,7 +58,6 @@ def training_step(tf_agent: agent.DQNAgent, replay_memory: agent.ReplayMemory,
             pass
         experiences = replay_memory.sample(batch_size)
         tf_agent.training_step(experiences)
-
 
 
 @gin.configurable
@@ -204,5 +186,19 @@ def main(_):
 
 
 if __name__ == '__main__':
+    flags.DEFINE_string('root_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
+                        'Root directory for writing logs/summaries/checkpoints.')
+    flags.DEFINE_multi_string('gin_files', [], 'List of paths to gin configuration files (e.g.'
+                            '"configs/hanabi_rainbow.gin").')
+    flags.DEFINE_multi_string(
+        'gin_bindings', [], 'Gin bindings to override the values set in the config files '
+        '(e.g. "train_eval.num_iterations=100").')
+    FLAGS = flags.FLAGS
+    
+    os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+    mpl.rcParams['agg.path.chunksize'] = 1_000      # Needed to avoid a matplotlib backend error when plotting high dpi images
+    #gpus = tf.config.experimental.list_physical_devices('GPU')
+    #tf.config.experimental.set_memory_growth(gpus[0], True)
+    
     flags.mark_flag_as_required('root_dir')
     app.run(main)
