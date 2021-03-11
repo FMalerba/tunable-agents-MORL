@@ -62,7 +62,7 @@ def main(_):
     results = eval_agent(env, tf_agent, FLAGS.n_episodes, FLAGS.reward_vector)
     
     results_dir = os.path.join(FLAGS.results_dir, "reward_vector") if FLAGS.reward_vector else FLAGS.results_dir
-    if not os.path.exists():
+    if not os.path.exists(results_dir):
         os.makedirs(results_dir)
     
     results_path = results_dir + experiment_dir.split("/")[-1] + ".npy"
