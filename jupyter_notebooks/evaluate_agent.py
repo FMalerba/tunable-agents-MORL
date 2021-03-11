@@ -70,7 +70,7 @@ def main(_):
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
     
-    results_path = results_dir + experiment_dir.split("/")[-1] + ".npy"
+    results_path = os.path.join(results_dir, experiment_dir.split("/")[-1] + ".npy")
     if os.path.exists(results_path):
         results = np.append(np.load(results_path), results, axis=0)
     np.save(results_path, results)
