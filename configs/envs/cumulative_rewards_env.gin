@@ -1,5 +1,5 @@
 include "envs/replication_env.gin"
 
-train_eval.env_id = "cum-rewards-env"           # Used to name the folder for logs/summaries/checkpoints
+train_eval.env_id = "cum_rewards_env"           # Used to name the folder for logs/summaries/checkpoints
 
 GatheringWrapper.cumulative_rewards_flag = True

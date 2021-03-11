@@ -1,6 +1,6 @@
 include 'envs/replication_env.gin'
 
-train_eval.env_id = "fixed-env"           # Used to name the folder for logs/summaries/checkpoints
+train_eval.env_id = "fixed_env"           # Used to name the folder for logs/summaries/checkpoints
 
 # Gridworld Environment
 MOGridworld.map = [[' ',     ' ',     ' ',     ' ',     ' ',     ' ',     ' ',     ' '],

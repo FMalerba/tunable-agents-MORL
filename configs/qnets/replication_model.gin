@@ -1,4 +1,4 @@
-train_eval.model_id = "64-64-model"           # Used to name the folder for logs/summaries/checkpoints
+train_eval.model_id = "64_64_model"           # Used to name the folder for logs/summaries/checkpoints
 
 # Preprocessing layers for Image Observations
 layer_1/Conv2D.filters = 256
