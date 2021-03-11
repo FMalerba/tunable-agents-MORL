@@ -36,9 +36,14 @@ def eval_agent(env: py_environment.PyEnvironment, tf_agent: agent.DQNAgent,
         
         assert episode_reward == env._prev_step_utility
         if reward_vector:
-            results.append(env._cumulative_rewards)
+            results.append([observations['utility_representation'], env._cumulative_rewards])
         else:
             results.append(episode_reward)
+    
+    if reward_vector:
+        results = np.array(results, dtype='object')
+    else:
+        results = np.array(results)
     
     return results
 
