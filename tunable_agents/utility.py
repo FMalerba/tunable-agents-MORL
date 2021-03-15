@@ -1,6 +1,6 @@
 from functools import partial
 import gin.tf
-from typing import Callable
+from typing import Callable, List
 
 import tensorflow as tf
 
@@ -11,7 +11,7 @@ from tunable_agents.environments.gathering_env import gathering_env
 from tunable_agents import external_configurables  # Don't remove, it's necessary to configure TF Layers
 
 
-def load_gin_configs(gin_files, gin_bindings):
+def load_gin_configs(gin_files: List[str], gin_bindings: List[str]):
     """Loads gin configuration files.
 
     Args:
