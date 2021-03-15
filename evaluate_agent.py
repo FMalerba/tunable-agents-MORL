@@ -82,7 +82,7 @@ if __name__ == '__main__':
     flags.DEFINE_string('results_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
                         'Root directory for writing the results')
     flags.DEFINE_multi_string('gin_files', [], 'List of paths to gin configuration files (e.g.'
-                            '"configs/hanabi_rainbow.gin").')
+                            '"configs/replication.gin").')
     flags.DEFINE_multi_string(
         'gin_bindings', [], 'Gin bindings to override the values set in the config files '
         '(e.g. "train_eval.num_iterations=100").')
