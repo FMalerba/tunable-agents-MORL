@@ -1,13 +1,85 @@
-from typing import Callable, Tuple, Optional
-import numpy as np
+from abc import ABC, abstractmethod
 from functools import partial
+import numpy as np
+from typing import Tuple, Optional
 
 
-UtilityFunction = Callable[[np.ndarray], float]
+class UtilityFunction(ABC):
+    
+    def __init__(self, agent_utility_repr: np.ndarray, gridworld_utility_repr: np.ndarray) -> None:
+        """
+        There are two utility representations, one that is fed as input to the agent and the other that is fed as preference
+        representation to the gridworld object underlying the GatheringWrapper environment.
+        """
+        self.agent_utility_repr = agent_utility_repr
+        self.gridworld_utility_repr = gridworld_utility_repr
+    
+    def __call__(self, rewards: np.ndarray) -> np.ndarray:
+        return self.call(rewards)
+    
+    @abstractmethod
+    def call(self, rewards: np.ndarray) -> np.ndarray:
+        """Implements the utility function"""
 
 
-def linear_utility(reward: np.ndarray, weights: np.ndarray) -> float:
-    return np.dot(reward, weights)
+class LinearUtility(UtilityFunction):
+    
+    def __init__(self, weights: Optional[np.ndarray] = None,
+                 agent_utility_repr: Optional[np.ndarray] = None,
+                 gridworld_utility_repr: Optional[np.ndarray] = None) -> None:
+        """
+        Contains all information and possible different representations of a utility function.
+        
+        At least one of the three optional arguments must be provided in order to reconstruct the others.
+        """
+        if weights is not None:
+            agent_utility_repr = weights[2:]/40
+            gridworld_utility_repr = weights
+        elif agent_utility_repr is not None:
+            weights = np.concatenate(([-1, -5], agent_utility_repr*40)).astype(np.float32)
+            gridworld_utility_repr = weights
+        elif gridworld_utility_repr is not None:
+            weights = gridworld_utility_repr
+            agent_utility_repr = weights[2:]/40
+        else:
+            raise ValueError("Expected to receive at least one utility representation argument, but received none.")
+        
+        self._weights = weights
+        
+        super().__init__(agent_utility_repr=agent_utility_repr, gridworld_utility_repr=gridworld_utility_repr)
+    
+    def call(self, rewards: np.ndarray) -> np.ndarray:
+        return np.dot(rewards, self.utility_repr)
+
+
+class ThresholdUtility(UtilityFunction):
+    
+    def __init__(self, thresholds_and_ceofficients: Optional[np.ndarray] = None,
+                 agent_utility_repr: Optional[np.ndarray] = None,
+                 gridworld_utility_repr: Optional[np.ndarray] = None) -> None:
+        """
+        Contains all information and possible different representations of a utility function.
+        
+        It is required that either thresholds_and_ceofficients is provided or the agent_utility_repr in order to reconstruct the others.
+        """
+        if thresholds_and_ceofficients is not None:
+            thresholds = thresholds_and_ceofficients[0]
+            coefficients = thresholds_and_ceofficients[1]
+            agent_utility_repr = (thresholds_and_ceofficients[:, 2:]/[[1], [40]]).flatten()
+            gridworld_utility_repr = thresholds_and_ceofficients[1]
+        elif agent_utility_repr is not None:
+            thresholds = np.concatenate(([0, 0], agent_utility_repr[:4])).astype(np.float32)
+            coefficients = np.concatenate(([-1, -5], agent_utility_repr[4:]*40)).astype(np.float32)
+            gridworld_utility_repr = coefficients
+        else:
+            raise ValueError("Expected to receive at least one utility representation argument, but received none.")
+        
+        self._thresholds = thresholds
+        self._coefficients = coefficients
+        super().__init__(agent_utility_repr=agent_utility_repr, gridworld_utility_repr=gridworld_utility_repr)
+    
+    def call(self, rewards: np.ndarray) -> np.ndarray:
+        return np.sum(np.where(rewards >= self._thresholds, rewards*self._coefficients, 0))
 
 
 def polinomial_utility(reward: np.ndarray, coefficients: np.ndarray) -> float:
@@ -15,11 +87,7 @@ def polinomial_utility(reward: np.ndarray, coefficients: np.ndarray) -> float:
     return np.sum(poly * coefficients)
 
 
-def threshold_utility(reward: np.ndarray, thresholds: np.ndarray, coefficients: np.ndarray) -> float:
-    return np.sum(np.where(reward >= thresholds, reward*coefficients, 0))
-
-
-def sample_linear_preference() -> np.ndarray:
+def sample_linear_weights() -> np.ndarray:
     """
     Samples a 6-long vector of preferences for the gathering environment replication study.
     Each preference weight is randomly sampled between -20 and 20 in steps of 5 with the 
@@ -31,13 +99,13 @@ def sample_linear_preference() -> np.ndarray:
     # An environment with a negative preference vector will simply stop the episode after the first step.
     # It is therefore pointless to sample such a vector.
     if np.all(pref <= 0):
-        return sample_linear_preference()
+        return sample_linear_weights()
     
     w01 = np.array([-1, -5], dtype=np.float32)
     return np.concatenate((w01, pref))
 
 
-def sample_thresholds() -> Tuple[np.ndarray, np.ndarray]:
+def sample_thresholds_and_coefficients() -> np.ndarray:
     """
     Samples a 6-long vector of thresholds for the gathering environment and a 6-long 
     vector of coefficients to be applied once the thresholds are exceeded.
@@ -52,30 +120,29 @@ def sample_thresholds() -> Tuple[np.ndarray, np.ndarray]:
     # An environment with a negative preference vector will simply stop the episode after the first step.
     # It is therefore pointless to sample such a vector.
     if np.all(coefficients <= 0):
-        return sample_thresholds()
+        return sample_thresholds_and_coefficients()
     
     w01 = np.array([-1, -5], dtype=np.float32)
-    return np.concatenate(([0, 0], thresholds)).astype(np.float32), np.concatenate((w01, coefficients))
+    return np.array([np.concatenate(([0, 0], thresholds)).astype(np.float32),
+                     np.concatenate((w01, coefficients))])
 
 
-def sample_utility(utility_type: str = 'linear', utility_repr: Optional[np.ndarray] = None) -> Tuple[np.ndarray, np.ndarray, UtilityFunction]:
+def sample_utility(utility_type: str = 'linear', utility_repr: Optional[np.ndarray] = None) -> UtilityFunction:
     """
-    Samples a utility function of the required utility_type (or constructs one if a utility_repr is provided).
+    Samples a UtilityFunction of the required utility_type (or constructs one if a utility_repr is provided).
     
     Returns a 3-tuple with the utility's representation for the agent, for the environment and a partial version 
             of the utility function 
     """
     if utility_type == 'linear':
         if utility_repr is not None:
-            # Preferences are in range [-20, 20] we normalize them to the range [-0.5, 0.5] for the agent's represantation
-            return utility_repr/40, utility_repr, partial(linear_utility, weights=utility_repr)
-        weights = sample_linear_preference()
-        # Preferences are in range [-20, 20] we normalize them to the range [-0.5, 0.5] for the agent's represantation
-        return weights[2:]/40, weights, partial(linear_utility, weights=weights)
+            return LinearUtility(weights=utility_repr)
+        weights = sample_linear_weights()
+        return LinearUtility(weights=weights)
     elif utility_type == 'threshold':
         if utility_repr is not None:
-            return (utility_repr[:,2:]/[[1],[40]]).flatten(), utility_repr[1], partial(threshold_utility, thresholds=utility_repr[0], coefficients=utility_repr[1])
-        thresholds, coefficients = sample_thresholds()
-        return (np.array([thresholds, coefficients/40])[:, 2:]).flatten(), coefficients, partial(threshold_utility, thresholds=thresholds, coefficients=coefficients)
+            return ThresholdUtility(thresholds_and_ceofficients=utility_repr)
+        thresholds_and_coefficients = sample_thresholds_and_coefficients()
+        return ThresholdUtility(thresholds_and_ceofficients=thresholds_and_coefficients)
     
     raise ValueError('Expected argument "utility_type" to be a string representing a valid implemented utility')
