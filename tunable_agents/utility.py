@@ -24,8 +24,9 @@ def load_gin_configs(gin_files: List[str], gin_bindings: List[str]):
         path_folders = gin_files[0].split('/')
         configs_folder_index = path_folders.index('configs')
     except:
-        raise ValueError("Expected gin_files paths to be like {}, instead got {}".format('.../configs/...', gin_files[0]))
-    
+        raise ValueError("Expected gin_files paths to be like {}, instead got {}".format(
+            '.../configs/...', gin_files[0]))
+
     configs_folder_path = '/'.join(path_folders[:configs_folder_index + 1])
     gin.add_config_file_search_path(configs_folder_path)
     gin.parse_config_files_and_bindings(gin_files, bindings=gin_bindings, skip_unknown=False)
@@ -90,4 +91,3 @@ def decaying_epsilon(step: tf.Variable, decay_type: str = 'exponential') -> Call
         return partial(no_decay)
     else:
         raise NotImplementedError('decay_type requested is not implemented yet.')
-

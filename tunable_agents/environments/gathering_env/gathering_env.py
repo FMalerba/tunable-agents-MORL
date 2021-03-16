@@ -81,22 +81,21 @@ class GatheringWrapper(py_environment.PyEnvironment):
                  gamma: float = 0.99,
                  history_size: int = 3,
                  utility_repr: np.ndarray = None,
-                 utility_type: str = 'linear'
-                 ) -> None:
+                 utility_type: str = 'linear') -> None:
         super().__init__()
         # If a utility representation is passed to the environment, then the corresponding utility is fixed and won't be resampled
-        
+
         self._fixed_utility = utility_repr is not None
         self._utility_type = utility_type
         self._utility_func = sample_utility(utility_type, utility_repr)
-        
+
         self._cumulative_rewards_flag = cumulative_rewards_flag
         self._cumulative_rewards: np.ndarray = np.zeros(shape=(6,), dtype=np.float32)
-        
+
         self._env = MOGridworld(preference=self._utility_func.gridworld_utility_repr)
         self.gamma = gamma
         self._obs_stacker = create_obs_stacker(self, history_size=history_size)
-        
+
         self._observation_spec = {
             'state_obs':
                 array_spec.ArraySpec(shape=self._obs_stacker.stacked_observation_shape(), dtype=np.float32),
@@ -125,7 +124,7 @@ class GatheringWrapper(py_environment.PyEnvironment):
 
         self._cumulative_rewards.fill(0.0)
         self._prev_step_utility = 0
-        
+
         self._obs_stacker.reset_stack()
         self._obs_stacker.add_observation(state_obs / 255)  # Normalizing obs in range [0, 1]
         stacked_obs = self._obs_stacker.get_observation_stack()
@@ -146,7 +145,7 @@ class GatheringWrapper(py_environment.PyEnvironment):
         state_obs, rewards, done, _ = self._env.step(action)
 
         self._cumulative_rewards += rewards
-        
+
         self._obs_stacker.add_observation(state_obs / 255)  # Normalizing obs in range [0, 1]
         stacked_obs = self._obs_stacker.get_observation_stack()
 
@@ -162,7 +161,7 @@ class GatheringWrapper(py_environment.PyEnvironment):
         current_utility = self._utility_func(self._cumulative_rewards)
         reward = current_utility - self._prev_step_utility
         self._prev_step_utility = current_utility
-        
+
         if done:
             return ts.termination(obs, reward)
         else:

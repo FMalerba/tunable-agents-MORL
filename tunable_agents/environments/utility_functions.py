@@ -1,11 +1,10 @@
 from abc import ABC, abstractmethod
-from functools import partial
 import numpy as np
-from typing import Tuple, Optional
+from typing import Optional
 
 
 class UtilityFunction(ABC):
-    
+
     def __init__(self, agent_utility_repr: np.ndarray, gridworld_utility_repr: np.ndarray) -> None:
         """
         There are two utility representations, one that is fed as input to the agent and the other that is fed as preference
@@ -13,18 +12,19 @@ class UtilityFunction(ABC):
         """
         self.agent_utility_repr = agent_utility_repr
         self.gridworld_utility_repr = gridworld_utility_repr
-    
+
     def __call__(self, rewards: np.ndarray) -> np.ndarray:
         return self.call(rewards)
-    
+
     @abstractmethod
     def call(self, rewards: np.ndarray) -> np.ndarray:
         """Implements the utility function"""
 
 
 class LinearUtility(UtilityFunction):
-    
-    def __init__(self, weights: Optional[np.ndarray] = None,
+
+    def __init__(self,
+                 weights: Optional[np.ndarray] = None,
                  agent_utility_repr: Optional[np.ndarray] = None,
                  gridworld_utility_repr: Optional[np.ndarray] = None) -> None:
         """
@@ -33,28 +33,30 @@ class LinearUtility(UtilityFunction):
         At least one of the three optional arguments must be provided in order to reconstruct the others.
         """
         if weights is not None:
-            agent_utility_repr = weights[2:]/40
+            agent_utility_repr = weights[2:] / 40
             gridworld_utility_repr = weights
         elif agent_utility_repr is not None:
-            weights = np.concatenate(([-1, -5], agent_utility_repr*40)).astype(np.float32)
+            weights = np.concatenate(([-1, -5], agent_utility_repr * 40)).astype(np.float32)
             gridworld_utility_repr = weights
         elif gridworld_utility_repr is not None:
             weights = gridworld_utility_repr
-            agent_utility_repr = weights[2:]/40
+            agent_utility_repr = weights[2:] / 40
         else:
-            raise ValueError("Expected to receive at least one utility representation argument, but received none.")
-        
+            raise ValueError(
+                "Expected to receive at least one utility representation argument, but received none.")
+
         self._weights = weights
-        
+
         super().__init__(agent_utility_repr=agent_utility_repr, gridworld_utility_repr=gridworld_utility_repr)
-    
+
     def call(self, rewards: np.ndarray) -> np.ndarray:
         return np.dot(rewards, self._weights)
 
 
 class ThresholdUtility(UtilityFunction):
-    
-    def __init__(self, thresholds_and_ceofficients: Optional[np.ndarray] = None,
+
+    def __init__(self,
+                 thresholds_and_ceofficients: Optional[np.ndarray] = None,
                  agent_utility_repr: Optional[np.ndarray] = None,
                  gridworld_utility_repr: Optional[np.ndarray] = None) -> None:
         """
@@ -65,25 +67,27 @@ class ThresholdUtility(UtilityFunction):
         if thresholds_and_ceofficients is not None:
             thresholds = thresholds_and_ceofficients[0]
             coefficients = thresholds_and_ceofficients[1]
-            agent_utility_repr = (thresholds_and_ceofficients[:, 2:]/[[1], [40]]).flatten()
+            agent_utility_repr = (thresholds_and_ceofficients[:, 2:] / [[1], [40]]).flatten()
             gridworld_utility_repr = thresholds_and_ceofficients[1]
         elif agent_utility_repr is not None:
             thresholds = np.concatenate(([0, 0], agent_utility_repr[:4])).astype(np.float32)
-            coefficients = np.concatenate(([-1, -5], agent_utility_repr[4:]*40)).astype(np.float32)
+            coefficients = np.concatenate(([-1, -5], agent_utility_repr[4:] * 40)).astype(np.float32)
             gridworld_utility_repr = coefficients
         else:
-            raise ValueError("Expected to receive at least one utility representation argument, but received none.")
-        
+            raise ValueError(
+                "Expected to receive at least one utility representation argument, but received none.")
+
         self._thresholds = thresholds
         self._coefficients = coefficients
         super().__init__(agent_utility_repr=agent_utility_repr, gridworld_utility_repr=gridworld_utility_repr)
-    
+
     def call(self, rewards: np.ndarray) -> np.ndarray:
-        return np.sum(np.where(rewards >= self._thresholds, rewards*self._coefficients, 0))
+        return np.sum(np.where(rewards >= self._thresholds, rewards * self._coefficients, 0))
 
 
 def polinomial_utility(reward: np.ndarray, coefficients: np.ndarray) -> float:
-    poly = np.expand_dims(reward, axis=1).repeat(coefficients.shape[1], axis=1) ** np.arange(coefficients.shape[1])
+    poly = np.expand_dims(reward, axis=1).repeat(coefficients.shape[1],
+                                                 axis=1)**np.arange(coefficients.shape[1])
     return np.sum(poly * coefficients)
 
 
@@ -95,12 +99,12 @@ def sample_linear_weights() -> np.ndarray:
     the punishment for taking a further time-step and the punishment for hitting a wall
     """
     # The 4 entries of pref are the preference for (respectively): Green, Red, Yellow, Other agent taking red
-    pref = np.random.choice(np.arange(-4, 5, dtype=np.float32), size=4)*5
+    pref = np.random.choice(np.arange(-4, 5, dtype=np.float32), size=4) * 5
     # An environment with a negative preference vector will simply stop the episode after the first step.
     # It is therefore pointless to sample such a vector.
     if np.all(pref <= 0):
         return sample_linear_weights()
-    
+
     w01 = np.array([-1, -5], dtype=np.float32)
     return np.concatenate((w01, pref))
 
@@ -115,19 +119,21 @@ def sample_thresholds_and_coefficients() -> np.ndarray:
     """
     # The 4 entries of thresholds and coefficients are for (respectively): Green, Red, Yellow, Other agent taking red
     thresholds = np.random.choice(np.arange(0, 4, dtype=np.float32), size=4)
-    coefficients = np.random.choice(np.arange(-4, 5, dtype=np.float32), size=4)*5
-    
+    coefficients = np.random.choice(np.arange(-4, 5, dtype=np.float32), size=4) * 5
+
     # An environment with a negative preference vector will simply stop the episode after the first step.
     # It is therefore pointless to sample such a vector.
     if np.all(coefficients <= 0):
         return sample_thresholds_and_coefficients()
-    
+
     w01 = np.array([-1, -5], dtype=np.float32)
-    return np.array([np.concatenate(([0, 0], thresholds)).astype(np.float32),
-                     np.concatenate((w01, coefficients))])
+    return np.array(
+        [np.concatenate(([0, 0], thresholds)).astype(np.float32),
+         np.concatenate((w01, coefficients))])
 
 
-def sample_utility(utility_type: str = 'linear', utility_repr: Optional[np.ndarray] = None) -> UtilityFunction:
+def sample_utility(utility_type: str = 'linear',
+                   utility_repr: Optional[np.ndarray] = None) -> UtilityFunction:
     """
     Samples a UtilityFunction of the required utility_type (or constructs one if a utility_repr is provided).
     
@@ -144,5 +150,6 @@ def sample_utility(utility_type: str = 'linear', utility_repr: Optional[np.ndarr
             return ThresholdUtility(thresholds_and_ceofficients=utility_repr)
         thresholds_and_coefficients = sample_thresholds_and_coefficients()
         return ThresholdUtility(thresholds_and_ceofficients=thresholds_and_coefficients)
-    
-    raise ValueError('Expected argument "utility_type" to be a string representing a valid implemented utility')
+
+    raise ValueError(
+        'Expected argument "utility_type" to be a string representing a valid implemented utility')
