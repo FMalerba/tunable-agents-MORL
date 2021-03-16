@@ -89,6 +89,9 @@ class GatheringWrapper(py_environment.PyEnvironment):
         # If a utility representation is passed to the environment, then the corresponding utility is fixed and won't be resampled
         # There are two utility representations, one that is fed as input to the agent and the other that is fed as preference
         # representation to the underlying gridworld object.
+        if (utility_repr_agent is not None) != (utility_repr_gridworld is not None):
+            raise RuntimeError("The environment is supposed to receive both representations in input or neither one.")
+        
         self._fixed_utility = utility_repr_agent is not None
         self._utility_repr_agent = utility_repr_agent
         self._utility_repr_gridworld = utility_repr_gridworld
