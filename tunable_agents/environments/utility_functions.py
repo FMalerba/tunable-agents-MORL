@@ -49,7 +49,7 @@ class LinearUtility(UtilityFunction):
         super().__init__(agent_utility_repr=agent_utility_repr, gridworld_utility_repr=gridworld_utility_repr)
     
     def call(self, rewards: np.ndarray) -> np.ndarray:
-        return np.dot(rewards, self.utility_repr)
+        return np.dot(rewards, self._weights)
 
 
 class ThresholdUtility(UtilityFunction):
