@@ -2,5 +2,4 @@ include "envs/replication_env.gin"
 
 train_eval.env_id = "threshold_env"           # Used to name the folder for logs/summaries/checkpoints
 
-GatheringWrapper.utility_repr_shape = (8, )
 GatheringWrapper.utility_type = 'threshold'

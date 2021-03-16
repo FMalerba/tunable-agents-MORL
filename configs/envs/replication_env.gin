@@ -60,5 +60,4 @@ create_environment.game = 'gathering'
 GatheringWrapper.cumulative_rewards_flag = False
 GatheringWrapper.gamma = 0.99
 GatheringWrapper.history_size = 3
-GatheringWrapper.utility_repr_shape = (4, )
 GatheringWrapper.utility_type = 'linear'
