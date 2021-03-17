@@ -5,13 +5,15 @@ from typing import Optional
 
 class UtilityFunction(ABC):
 
-    def __init__(self, agent_utility_repr: np.ndarray, gridworld_utility_repr: np.ndarray) -> None:
+    def __init__(self, utility_repr: np.ndarray, agent_utility_repr: np.ndarray,
+                 gridworld_utility_repr: np.ndarray) -> None:
         """
         There are two utility representations, one that is fed as input to the agent and the other that is fed as preference
         representation to the gridworld object underlying the GatheringWrapper environment.
         """
-        self.agent_utility_repr = agent_utility_repr
-        self.gridworld_utility_repr = gridworld_utility_repr
+        self._utility_repr = utility_repr
+        self._agent_utility_repr = agent_utility_repr
+        self._gridworld_utility_repr = gridworld_utility_repr
 
     def __call__(self, rewards: np.ndarray) -> np.ndarray:
         return self.call(rewards)
@@ -19,6 +21,18 @@ class UtilityFunction(ABC):
     @abstractmethod
     def call(self, rewards: np.ndarray) -> np.ndarray:
         """Implements the utility function"""
+
+    @property
+    def utility_repr(self):
+        return np.copy(self._utility_repr)
+
+    @property
+    def agent_utility_repr(self):
+        return np.copy(self._agent_utility_repr)
+
+    @property
+    def gridworld_utility_repr(self):
+        return np.copy(self._gridworld_utility_repr)
 
 
 class LinearUtility(UtilityFunction):
@@ -47,14 +61,12 @@ class LinearUtility(UtilityFunction):
 
         self._weights = weights
 
-        super().__init__(agent_utility_repr=agent_utility_repr, gridworld_utility_repr=gridworld_utility_repr)
+        super().__init__(utility_repr=weights,
+                         agent_utility_repr=agent_utility_repr,
+                         gridworld_utility_repr=gridworld_utility_repr)
 
     def call(self, rewards: np.ndarray) -> np.ndarray:
         return np.dot(rewards, self._weights)
-    
-    @property
-    def weights(self):
-        return np.copy(self._weights)
 
 
 class ThresholdUtility(UtilityFunction):
@@ -83,7 +95,9 @@ class ThresholdUtility(UtilityFunction):
 
         self._thresholds = thresholds
         self._coefficients = coefficients
-        super().__init__(agent_utility_repr=agent_utility_repr, gridworld_utility_repr=gridworld_utility_repr)
+        super().__init__(utility_repr=np.array([thresholds, coefficients]),
+                         agent_utility_repr=agent_utility_repr,
+                         gridworld_utility_repr=gridworld_utility_repr)
 
     def call(self, rewards: np.ndarray) -> np.ndarray:
         return np.sum(np.where(rewards >= self._thresholds, rewards * self._coefficients, 0))
@@ -103,7 +117,7 @@ def sample_linear_weights() -> np.ndarray:
     the punishment for taking a further time-step and the punishment for hitting a wall
     """
     # The 4 entries of pref are the preference for (respectively): Green, Red, Yellow, Other agent taking red
-    pref = np.random.choice(np.arange(-4, 5, dtype=np.float32), size=4) * 5
+    pref = np.random.choice(np.arange(-20, 21, step=5, dtype=np.float32), size=4)
     # An environment with a negative preference vector will simply stop the episode after the first step.
     # It is therefore pointless to sample such a vector.
     if np.all(pref <= 0):
@@ -123,7 +137,7 @@ def sample_thresholds_and_coefficients() -> np.ndarray:
     """
     # The 4 entries of thresholds and coefficients are for (respectively): Green, Red, Yellow, Other agent taking red
     thresholds = np.random.choice(np.arange(0, 4, dtype=np.float32), size=4)
-    coefficients = np.random.choice(np.arange(-4, 5, dtype=np.float32), size=4) * 5
+    coefficients = np.random.choice(np.arange(-20, 21, step=5, dtype=np.float32), size=4)
 
     # An environment with a negative preference vector will simply stop the episode after the first step.
     # It is therefore pointless to sample such a vector.
