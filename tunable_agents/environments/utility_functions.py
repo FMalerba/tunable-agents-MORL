@@ -51,6 +51,10 @@ class LinearUtility(UtilityFunction):
 
     def call(self, rewards: np.ndarray) -> np.ndarray:
         return np.dot(rewards, self._weights)
+    
+    @property
+    def weights(self):
+        return np.copy(self._weights)
 
 
 class ThresholdUtility(UtilityFunction):
