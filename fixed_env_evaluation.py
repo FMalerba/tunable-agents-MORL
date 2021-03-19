@@ -6,7 +6,6 @@ import gin
 import numpy as np
 import os
 from tqdm import tqdm
-import tensorflow as tf
 
 from tunable_agents import utility, agent
 from tunable_agents.environments.gathering_env.gathering_env import GatheringWrapper
@@ -39,10 +38,10 @@ LINEAR_UTILITIES = [
 THRESHOLD_UTILITIES = [
     ThresholdUtility(thresholds_and_ceofficients=np.array(
         [[0, 0, thresh0, thresh1, thresh2, thresh3], util.utility_repr], dtype=np.float32))
-    for thresh0 in np.arange(0, 4)
-    for thresh1 in np.arange(0, 4)
-    for thresh2 in np.arange(0, 4)
-    for thresh3 in np.arange(0, 4)
+    for thresh0 in [0, 2]
+    for thresh1 in [0, 2]
+    for thresh2 in [0, 2]
+    for thresh3 in [0, 2]
     for util in LINEAR_UTILITIES
 ]
 
@@ -111,8 +110,8 @@ if __name__ == '__main__':
     FLAGS = flags.FLAGS
     flags.mark_flag_as_required('experiment_dir')
 
-    gpus = tf.config.experimental.list_physical_devices('GPU')
-    tf.config.experimental.set_memory_growth(gpus[0], True)
-    #os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+    #gpus = tf.config.experimental.list_physical_devices('GPU')
+    #tf.config.experimental.set_memory_growth(gpus[0], True)
+    os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
     app.run(main)
