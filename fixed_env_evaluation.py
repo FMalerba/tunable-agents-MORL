@@ -29,10 +29,10 @@ ENV_KWARGS = {
 
 LINEAR_UTILITIES = [
     LinearUtility(weights=np.array([-1, -5, r0, r1, r2, r3], dtype=np.float32))
-    for r0 in np.arange(-20, 21, step=4)
-    for r1 in np.arange(-20, 21, step=4)
-    for r2 in np.arange(-20, 21, step=4)
-    for r3 in np.arange(-20, 21, step=4)
+    for r0 in np.arange(-20, 21, step=5)
+    for r1 in np.arange(-20, 21, step=5)
+    for r2 in np.arange(-20, 21, step=5)
+    for r3 in np.arange(-20, 21, step=5)
     if (r0 > 0) or (r1 > 0) or (r2 > 0) or (r3 > 0)
 ]
 
