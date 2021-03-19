@@ -73,11 +73,11 @@ def fixed_env_eval(env_kwargs: dict, tf_agent: agent.DQNAgent) -> np.ndarray:
 
 def main(_):
     logging.set_verbosity(logging.INFO)
-    gin_files = ["configs/envs/fixed_env.gin"]
+    gin_files = ["tunable-agents-MORL/configs/envs/fixed_env.gin"]
     if "64_64_model" in FLAGS.experiment_dir:
-        gin_files.append("configs/qnets/replication_model.gin")
+        gin_files.append("tunable-agents-MORL/configs/qnets/replication_model.gin")
     elif "128_128_64_model" in FLAGS.experiment_dir:
-        gin_files.append("configs/qnets/128_128_64_model.gin")
+        gin_files.append("tunable-agents-MORL/configs/qnets/128_128_64_model.gin")
     utility.load_gin_configs(gin_files, [])
 
     experiment_dir = FLAGS.experiment_dir
