@@ -2,11 +2,11 @@ from absl import app
 from absl import flags
 from absl import logging
 
+import gin
 import numpy as np
 import os
 from tqdm import tqdm
-
-import gin
+import tensorflow as tf
 
 from tunable_agents import utility, agent
 from tunable_agents.environments.gathering_env.gathering_env import GatheringWrapper
@@ -111,8 +111,8 @@ if __name__ == '__main__':
     FLAGS = flags.FLAGS
     flags.mark_flag_as_required('experiment_dir')
 
-    #gpus = tf.config.experimental.list_physical_devices('GPU')
-    #tf.config.experimental.set_memory_growth(gpus[0], True)
-    os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    tf.config.experimental.set_memory_growth(gpus[0], True)
+    #os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
     app.run(main)
