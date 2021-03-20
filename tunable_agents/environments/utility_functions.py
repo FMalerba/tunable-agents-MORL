@@ -24,15 +24,15 @@ class UtilityFunction(ABC):
 
     @property
     def utility_repr(self):
-        return np.copy(self._utility_repr)
+        return self._utility_repr
 
     @property
     def agent_utility_repr(self):
-        return np.copy(self._agent_utility_repr)
+        return self._agent_utility_repr
 
     @property
     def gridworld_utility_repr(self):
-        return np.copy(self._gridworld_utility_repr)
+        return self._gridworld_utility_repr
 
 
 class LinearUtility(UtilityFunction):
