@@ -52,7 +52,7 @@ def train_eval(training_id: str, model_id: str, env_id: str):
 
 
 def fixed_env_eval(env_kwargs: dict, tf_agent: agent.DQNAgent) -> np.ndarray:
-    utilities = LINEAR_UTILITIES if "linear" in env_kwargs.values() else THRESHOLD_UTILITIES
+    utilities = THRESHOLD_UTILITIES if "threshold" in env_kwargs.values() else LINEAR_UTILITIES
     results = []
     for utility in tqdm(utilities):
         env = GatheringWrapper(utility_repr=utility.utility_repr, **env_kwargs)
