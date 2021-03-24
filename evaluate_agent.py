@@ -66,7 +66,7 @@ def main(_):
     results = eval_agent(env, tf_agent, FLAGS.n_episodes, FLAGS.reward_vector)
 
     results_dir = os.path.join(FLAGS.results_dir,
-                               "reward_vector") if FLAGS.reward_vector else FLAGS.results_dir
+                               "reward_vector" if FLAGS.reward_vector else "utilities")
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
 
