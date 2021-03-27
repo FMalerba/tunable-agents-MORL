@@ -1,10 +1,26 @@
 import gin
+import matplotlib.pyplot as plt
 import numpy as np
+import os
+
 from tf_agents.trajectories import time_step as ts
 from tf_agents.environments import py_environment
 from tf_agents.policies import tf_policy
-import matplotlib.pyplot as plt
+
 from tqdm import tqdm
+from typing import Dict
+
+
+def load_results(path: str) -> Dict[str, np.ndarray]:
+    keys = set()
+    for file in os.listdir(path):
+        keys.add("-".join(file.split("-")[:2]))
+    
+    results = dict()
+    for key in keys:
+        results[key] = [np.load(path + file, allow_pickle=True) for file in os.listdir(path) if key in file]
+    
+    return results
 
 
 def render_time_step(time_step: ts.TimeStep, ax, action: int = None) -> None:
