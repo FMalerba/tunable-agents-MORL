@@ -1,3 +1,4 @@
+import gin
 import numpy as np
 from tf_agents.trajectories import time_step as ts
 from tf_agents.environments import py_environment
@@ -86,4 +87,9 @@ def model_evaluate_utility(env: py_environment.PyEnvironment, model, n_episodes:
     
     return utilities
 
+
+@gin.configurable
+def train_eval(training_id: str, model_id: str, env_id: str):
+    """Only defined to avoid configs error for undefined func when loading"""
+    pass
 
