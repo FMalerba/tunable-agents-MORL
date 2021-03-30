@@ -12,8 +12,8 @@ from tunable_agents import utility, agent
 from tf_agents.environments import py_environment
 
 
-ENV_DICT = {"cumulative_rewards_env": "cum_rewards_env.gin",
-            "cumulative_threshold_env": "cum_threshold_env.gin",
+ENV_DICT = {"cum_rewards_env": "cumulative_rewards_env.gin",
+            "cum_threshold_env": "cumulative_threshold_env.gin",
             "replication_env": "replication_env.gin",
             "threshold_utility_env": "threshold_env.gin"}
 
