@@ -150,6 +150,30 @@ def sample_thresholds_and_coefficients() -> np.ndarray:
          np.concatenate((w01, coefficients))])
 
 
+def sample_linear_thresholds() -> np.ndarray:
+    """
+    Samples a 6-long vector of thresholds for the gathering environment and a 6-long 
+    vector of coefficients to be applied once the thresholds are exceeded.
+    The sampled vectors are selected so as to be equivalent to a linear utility sampling (i.e. the 
+    thresholds are all set to 0).
+    The coefficients are sampled at random with the exception of the first two entries
+    which are fixed at -1 and -5. They respectively signal the punishment for taking a
+    further time-step and the punishment for hitting a wall.
+    """
+    # The 4 entries of thresholds and coefficients are for (respectively): Green, Red, Yellow, Other agent taking red
+    coefficients = np.random.choice(np.arange(-20, 21, step=5, dtype=np.float32), size=4)
+
+    # An environment with a negative preference vector will simply stop the episode after the first step.
+    # It is therefore pointless to sample such a vector.
+    if np.all(coefficients <= 0):
+        return sample_thresholds_and_coefficients()
+
+    w01 = np.array([-1, -5], dtype=np.float32)
+    return np.array(
+        [[0, 0, 0, 0, 0, 0],
+         np.concatenate((w01, coefficients))], dtype=np.float32)
+
+
 def sample_utility(utility_type: str = 'linear',
                    utility_repr: Optional[np.ndarray] = None) -> UtilityFunction:
     """
@@ -167,6 +191,11 @@ def sample_utility(utility_type: str = 'linear',
         if utility_repr is not None:
             return ThresholdUtility(thresholds_and_ceofficients=utility_repr)
         thresholds_and_coefficients = sample_thresholds_and_coefficients()
+        return ThresholdUtility(thresholds_and_ceofficients=thresholds_and_coefficients)
+    elif utility_type == "linear_threshold":
+        if utility_repr is not None:
+            return ThresholdUtility(thresholds_and_ceofficients=utility_repr)
+        thresholds_and_coefficients = sample_linear_thresholds()
         return ThresholdUtility(thresholds_and_ceofficients=thresholds_and_coefficients)
 
     raise ValueError(
