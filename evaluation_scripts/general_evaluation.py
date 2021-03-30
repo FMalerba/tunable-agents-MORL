@@ -59,6 +59,9 @@ def eval_agent(env: py_environment.PyEnvironment,
 def main(_):
     logging.set_verbosity(logging.INFO)
     
+    if FLAGS.linear_threshold and not "threshold" in FLAGS.experiment_dir:
+        raise ValueError("Can't evaluate a non threshold agent on threshold utilities.")
+    
     experiment_dir: str = FLAGS.experiment_dir
     model_dir = os.path.join(experiment_dir, 'model')
     model_path = os.path.join(model_dir, 'dqn_model.h5')
@@ -111,9 +114,6 @@ if __name__ == '__main__':
     flags.mark_flag_as_required('experiment_dir')
     flags.mark_flag_as_required('results_dir')
     
-    if FLAGS.linear_threshold and not "threshold" in FLAGS.experiment_dir:
-        raise ValueError("Can't evaluate a non threshold agent on threshold utilities.")
-
     #gpus = tf.config.experimental.list_physical_devices('GPU')
     #tf.config.experimental.set_memory_growth(gpus[0], True)
     os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
