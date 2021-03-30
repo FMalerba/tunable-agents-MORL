@@ -1,4 +1,4 @@
-include "qnets/replication_model.gin"
+include "qnets/64_64_model.gin"
 
 train_eval.model_id = "128_128_64_model"          # Used to name the folder for logs/summaries/checkpoints
 
