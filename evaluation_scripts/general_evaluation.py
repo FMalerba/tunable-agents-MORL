@@ -105,11 +105,14 @@ if __name__ == '__main__':
         'reward_vector', False, "Whether to compute results for the reward vector"
         " instead of the utility scalarized result.")
     flags.DEFINE_bool(
-        'linear_utility', False, "Whether to run a ThresholdUtility-type agent on "
+        'linear_threshold', False, "Whether to run a ThresholdUtility-type agent on "
         "utilities that are mathematically equivalent to linear ones.")
     FLAGS = flags.FLAGS
     flags.mark_flag_as_required('experiment_dir')
     flags.mark_flag_as_required('results_dir')
+    
+    if FLAGS.linear_threshold and not "threshold" in FLAGS.experiment_dir:
+        raise ValueError("Can't evaluate a non threshold agent on threshold utilities.")
 
     #gpus = tf.config.experimental.list_physical_devices('GPU')
     #tf.config.experimental.set_memory_growth(gpus[0], True)
