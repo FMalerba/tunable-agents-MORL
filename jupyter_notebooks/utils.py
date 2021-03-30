@@ -18,7 +18,8 @@ def load_results(path: str) -> Dict[str, np.ndarray]:
     
     results = dict()
     for key in keys:
-        results[key] = [np.load(path + file, allow_pickle=True) for file in os.listdir(path) if key in file]
+        new_key = "-".join(key.split("-")[::-1])
+        results[new_key] = [np.load(path + file, allow_pickle=True) for file in os.listdir(path) if key.split("-") == file.split("-")[:2]]
     
     return results
 
