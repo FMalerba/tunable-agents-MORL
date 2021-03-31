@@ -1,6 +1,7 @@
 import gin
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import os
 
 from tf_agents.trajectories import time_step as ts
@@ -8,7 +9,15 @@ from tf_agents.environments import py_environment
 from tf_agents.policies import tf_policy
 
 from tqdm import tqdm
-from typing import Dict
+from typing import Dict, List
+
+
+# LISTS THAT ARE USED FOR CONSISTENT SORTING OF ENVIRONMENTS AND MODELS
+ENVS = ["replication_env", "threshold_env", "threshold_env_linear",
+        "cum_rewards_env", "cum_threshold_env", "cum_threshold_env_linear"]
+MODELS = ["64_64_model", "less_utils_64_64_model",
+          "128_128_64_model", "less_utils_128_128_64_model",
+          "256_128_128_64_64_model", "less_utils_256_128_128_64_64_model"]
 
 
 def load_results(path: str) -> Dict[str, np.ndarray]:
@@ -22,6 +31,59 @@ def load_results(path: str) -> Dict[str, np.ndarray]:
         results[new_key] = [np.load(path + file, allow_pickle=True) for file in os.listdir(path) if key.split("-") == file.split("-")[:2]]
     
     return results
+
+
+def sorting(key: str) -> int:
+    env_sorting = dict([(env, i) for i, env in enumerate(ENVS)])
+    model_sorting = dict([(model, i) for i, model in enumerate(MODELS)])
+    
+    env, model = key.split("-")
+    
+    return env_sorting[env]*(max(model_sorting.values())+1) + model_sorting[model]
+
+
+def utilities_table(results: Dict[str, List[np.ndarray]]) -> pd.DataFrame:
+    keys = sorted(results.keys(), key=sorting)
+    df = pd.DataFrame(columns=["Environment", "Model", "Utility"])
+    
+    for key in keys:
+        if "less_utils" in key:
+            continue
+        env, model = key.split("-")
+        res = [np.mean(result) for result in results[key]]
+        mean_util = np.round(np.mean(res), 2)
+        std_err = np.round(np.std(res)/np.sqrt(len(res)), 2)
+        val = f"{mean_util} (+-{std_err})"
+        df = df.append({"Environment": env,
+                        "Model": model,
+                        "Utility": val
+                        },
+                       ignore_index=True)
+    
+    df['Environment'] = pd.Categorical(df["Environment"], ENVS)
+    df['Model'] = pd.Categorical(df["Model"], MODELS)
+    
+    return df
+
+
+def fixed_env_table(results: Dict[str, List[np.ndarray]]) -> pd.DataFrame:
+    keys = sorted(results.keys(), key=sorting)
+    df = pd.DataFrame(columns=["Environment", "Model", "Uniques"])
+    
+    for key in keys:
+        if "less_utils" in key:
+            continue
+        env, model = key.split("-")
+        df = df.append({"Environment": env,
+                        "Model": model,
+                        "Uniques": np.round(np.mean([np.unique(result, axis=0).shape[0] for result in results[key]]), 1)
+                        },
+                       ignore_index=True)
+    
+    df['Environment'] = pd.Categorical(df["Environment"], ENVS)
+    df['Model'] = pd.Categorical(df["Model"], MODELS)
+    
+    return df
 
 
 def render_time_step(time_step: ts.TimeStep, ax, action: int = None) -> None:
