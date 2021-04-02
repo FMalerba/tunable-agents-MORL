@@ -100,17 +100,22 @@ def main(_):
 
     # Selecting the utilities to run on
     utilities = utility_list(env_kwargs["utility_type"])
+    results_dir = os.path.join(FLAGS.results_dir, "fixed_env_results", experiment_dir.split("/")[-1])
+    if not os.path.isdir(results_dir):
+        os.makedirs(results_dir)
+        results_filepath = os.path.join(results_dir, '0.npy')
+        run_id = 0
+    else:
+        run_id = max([int(file[:-4]) for file in os.listdir(results_dir)]) + 1
+        results_filepath = os.path.join(results_dir, str(run_id)+".npy")
+    np.save(results_filepath, None)     # To mark that this run is in execution to other processes
+    run_utilities = np.array_split(utilities, 10)[run_id].tolist()
 
     # Evaluating the agent on the fixed environment
-    results = fixed_env_eval(env_kwargs, tf_agent, utilities)
+    results = fixed_env_eval(env_kwargs, tf_agent, run_utilities)
 
     # Save results
-    results_dir = os.path.join(FLAGS.results_dir, "fixed_env_results")
-    if not os.path.exists(results_dir):
-        os.makedirs(results_dir)
-
-    results_path = os.path.join(results_dir, experiment_dir.split("/")[-1] + ".npy")
-    np.save(results_path, results)
+    np.save(results_filepath, results)
 
 
 if __name__ == '__main__':
