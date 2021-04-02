@@ -2,20 +2,21 @@ from absl import app
 from absl import flags
 from absl import logging
 
+import gin
 import numpy as np
 import os
 from tqdm import tqdm
 
-import gin
-
-from tunable_agents import utility, agent
 from tf_agents.environments import py_environment
+from tunable_agents import utility, agent
 
 
-ENV_DICT = {"cum_rewards_env": "cumulative_rewards_env.gin",
-            "cum_threshold_env": "cumulative_threshold_env.gin",
-            "replication_env": "replication_env.gin",
-            "threshold_env": "threshold_utility_env.gin"}
+ENV_DICT = {
+    "cum_rewards_env": "cumulative_rewards_env.gin",
+    "cum_threshold_env": "cumulative_threshold_env.gin",
+    "replication_env": "replication_env.gin",
+    "threshold_env": "threshold_utility_env.gin"
+}
 
 
 @gin.configurable
@@ -58,40 +59,43 @@ def eval_agent(env: py_environment.PyEnvironment,
 
 def main(_):
     logging.set_verbosity(logging.INFO)
-    
+
     if FLAGS.linear_threshold and not "threshold" in FLAGS.experiment_dir:
         raise ValueError("Can't evaluate a non threshold agent on threshold utilities.")
-    
+
     experiment_dir: str = FLAGS.experiment_dir
     model_dir = os.path.join(experiment_dir, 'model')
     model_path = os.path.join(model_dir, 'dqn_model.h5')
-    
+
+    # Loading appropriate gin configs for the environment and this experiment
     qnet_gin, env_gin = experiment_dir.split("/")[-1].split("-")[:2]
     gin_config_path = "tunable-agents-MORL/configs/"
-    gin_files = [gin_config_path + "qnets/" + qnet_gin + ".gin", gin_config_path + "envs/" + ENV_DICT[env_gin]]
+    gin_files = [
+        gin_config_path + "qnets/" + qnet_gin + ".gin", gin_config_path + "envs/" + ENV_DICT[env_gin]
+    ]
     gin_bindings = ["GatheringWrapper.utility_type='linear_threshold'"] if FLAGS.linear_threshold else []
     utility.load_gin_configs(gin_files, gin_bindings)
 
-    
+    # Loading trained agent model
     env = utility.create_environment()
     tf_agent = agent.DQNAgent(epsilon=0, obs_spec=env.observation_spec())
-
     tf_agent.load_model(model_path)
 
+    # Evaluating the agent
     results = eval_agent(env, tf_agent, FLAGS.n_episodes, FLAGS.reward_vector)
 
-    results_dir = os.path.join(FLAGS.results_dir,
-                               "reward_vector" if FLAGS.reward_vector else "utilities")
+    # Save results
+    results_dir = os.path.join(FLAGS.results_dir, "reward_vector" if FLAGS.reward_vector else "utilities")
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
 
     if FLAGS.linear_threshold:
         results_file_name = experiment_dir.split("/")[-1].split("-")
-        results_file_name[1] = results_file_name[1] + "_linear"
+        results_file_name[1] += "_linear"
         results_file_name = "-".join(results_file_name) + ".npy"
     else:
         results_file_name = experiment_dir.split("/")[-1] + ".npy"
-    
+
     results_path = os.path.join(results_dir, results_file_name)
     if os.path.exists(results_path):
         results = np.append(np.load(results_path, allow_pickle=True), results, axis=0)
@@ -113,7 +117,7 @@ if __name__ == '__main__':
     FLAGS = flags.FLAGS
     flags.mark_flag_as_required('experiment_dir')
     flags.mark_flag_as_required('results_dir')
-    
+
     #gpus = tf.config.experimental.list_physical_devices('GPU')
     #tf.config.experimental.set_memory_growth(gpus[0], True)
     os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
