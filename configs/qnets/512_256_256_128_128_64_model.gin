@@ -1,0 +1,26 @@
+include "qnets/256_128_128_64_64_model.gin"
+
+train_eval.model_id = "512_256_256_128_128_64_model"          # Used to name the folder for logs/summaries/checkpoints
+
+# Postprocessing layers for flattened image encodings concatenated with any other vector inputs 
+layer_5/Dense.units = 512
+layer_7/Dense.units = 256
+layer_9/Dense.units = 256
+layer_11/Dense.units = 128
+layer_13/Dense.units = 128
+
+layer_15/Dense.units = 64
+layer_15/Dense.activation = 'relu'
+layer_15/Dense.name = "Dense_6"
+layer_16/Dropout.rate = 0.2 
+layer_16/Dropout.name = "Dropout_8"
+
+
+build_model.postprocessing_layers = [@layer_5/Dense(), @layer_6/Dropout(),
+                                     @layer_7/Dense(), @layer_8/Dropout(),
+                                     @layer_9/Dense(), @layer_10/Dropout(),
+                                     @layer_11/Dense(), @layer_12/Dropout(),
+                                     @layer_13/Dense(), @layer_14/Dropout(),
+                                     @layer_15/Dense(), @layer_16/Dropout(),
+                                     @output/Dense()]
+
