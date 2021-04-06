@@ -88,11 +88,12 @@ class GatheringWrapper(py_environment.PyEnvironment):
         self._fixed_utility = utility_repr is not None
         self._utility_type = utility_type
         self._utility_func = sample_utility(utility_type, utility_repr)
+        self._interests = self._utility_func.interests
 
         self._cumulative_rewards_flag = cumulative_rewards_flag
         self._cumulative_rewards: np.ndarray = np.zeros(shape=(6,), dtype=np.float32)
 
-        self._env = MOGridworld(preference=self._utility_func.gridworld_utility_repr)
+        self._env = MOGridworld()
         self.gamma = gamma
         self._obs_stacker = create_obs_stacker(self, history_size=history_size)
 
@@ -116,11 +117,11 @@ class GatheringWrapper(py_environment.PyEnvironment):
         return (8, 8, 3)
 
     def _reset(self) -> ts.TimeStep:
-        if self._fixed_utility:
-            state_obs = self._env.reset()
-        else:
+        if not self._fixed_utility:
             self._utility_func = sample_utility(self._utility_type)
-            state_obs = self._env.reset(self._utility_func.gridworld_utility_repr)
+            self._interests = self._utility_func.interests
+        
+        state_obs = self._env.reset()
 
         self._cumulative_rewards.fill(0.0)
         self._prev_step_utility = 0
@@ -142,8 +143,8 @@ class GatheringWrapper(py_environment.PyEnvironment):
         if self._current_time_step.is_last():
             return self.reset()
 
-        state_obs, rewards, done, _ = self._env.step(action)
-
+        state_obs, rewards, _ = self._env.step(action)
+        done = self._is_done()
         self._cumulative_rewards += rewards
 
         self._obs_stacker.add_observation(state_obs / 255)  # Normalizing obs in range [0, 1]
@@ -166,3 +167,24 @@ class GatheringWrapper(py_environment.PyEnvironment):
             return ts.termination(obs, reward)
         else:
             return ts.transition(obs, reward, self.gamma)
+    
+    def _is_done(self) -> bool:
+        if self._env.step_count > self._env.max_steps:
+            return True
+        
+        if self._utility_type == "target":
+            interests = self._interests - self._cumulative_rewards
+        else:
+            interests = self._interests
+        
+
+        for row in range(self._env.grid.shape[0]):
+            for column in range(self._env.grid.shape[1]):
+                if self._env.grid[row, column] is not None and interests[self._env.grid[row, column].idx] > 0:
+                    return False
+
+        for agent in self._env.agents:
+            if (interests[agent.idx] > 0) and (not agent.is_done):
+                return False
+
+        return True
