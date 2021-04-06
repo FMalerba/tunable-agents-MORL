@@ -53,7 +53,6 @@ MOGridworld.init_agents = [@HunterAgent()]
 MOGridworld.agent_start = [0,0]
 MOGridworld.agent_color = (0.0, 0.0, 255.0)
 MOGridworld.max_steps = 30
-MOGridworld.include_agents = False
 
 # GatheringWrapper
 create_environment.game = 'gathering'
