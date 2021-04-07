@@ -116,7 +116,7 @@ class TargetUtility(UtilityFunction):
         else:
             raise ValueError("Expected to receive at least one required argument, but received none.")
 
-        self._target = target
+        self._target = target/np.linalg.norm(target)
         interests = target
         super().__init__(utility_repr=target, agent_utility_repr=agent_utility_repr, interests=interests)
 
