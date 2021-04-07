@@ -110,9 +110,9 @@ class TargetUtility(UtilityFunction):
         It is required that either the target is provided or the agent_utility_repr in order to reconstruct the others.
         """
         if target is not None:
-            agent_utility_repr = target
+            agent_utility_repr = target.astype(np.float32)
         elif agent_utility_repr is not None:
-            target = agent_utility_repr
+            target = agent_utility_repr.astype(np.float32)
         else:
             raise ValueError("Expected to receive at least one required argument, but received none.")
 
@@ -127,7 +127,7 @@ class TargetUtility(UtilityFunction):
         # Episode length is 31 (this is due to unexpected and poorly executed behaviour for the underlying
         # MOGridworld class) and time and wall penalties are 1 per time step, so the translation ought to be
         # of 31.
-        return np.min((rewards * [-1, -1, 1, 1, 1, 1] + [31, 31, 0, 0, 0, 0]) / self._target)
+        return np.min((rewards * [-1, -1, 1, 1, 1, 1] + [31, 31, 0, 0, 0, 0] + np.finfo(np.float32).eps) / self._target)
 
 
 def sample_linear_weights() -> np.ndarray:
@@ -206,7 +206,7 @@ def sample_target() -> np.ndarray:
     targets = np.random.choice(np.arange(3), size=4)
     if np.all(targets == 0):
         return sample_target()
-    return np.concatenate([[31, 31], targets])
+    return np.concatenate([[31, 31], targets]).astype(np.float32)
 
 
 def sample_utility(utility_type: str = 'linear',
