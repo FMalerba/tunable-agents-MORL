@@ -53,15 +53,13 @@ class LinearUtility(UtilityFunction):
         """
         if weights is not None:
             agent_utility_repr = weights[2:] / 40
-            interests = (weights > 0).astype(int)
         elif agent_utility_repr is not None:
             weights = np.concatenate(([-1, -5], agent_utility_repr * 40)).astype(np.float32)
-            interests = (weights > 0).astype(int)
         else:
             raise ValueError("Expected to receive at least one required argument, but received none.")
 
         self._weights = weights
-
+        interests = (weights > 0).astype(int)
         super().__init__(utility_repr=weights, agent_utility_repr=agent_utility_repr, interests=interests)
 
     def call(self, rewards: np.ndarray) -> np.ndarray:
@@ -83,17 +81,16 @@ class ThresholdUtility(UtilityFunction):
             thresholds = thresholds_and_ceofficients[0]
             coefficients = thresholds_and_ceofficients[1]
             agent_utility_repr = (thresholds_and_ceofficients[:, 2:] / [[1], [40]]).flatten()
-            interests = (thresholds_and_ceofficients[1] > 0).astype(int)
         elif agent_utility_repr is not None:
             thresholds = np.concatenate(([0, 0], agent_utility_repr[:4])).astype(np.float32)
             coefficients = np.concatenate(([-1, -5], agent_utility_repr[4:] * 40)).astype(np.float32)
-            interests = (coefficients > 0).astype(int)
         else:
             raise ValueError(
                 "Expected to receive at least one utility representation argument, but received none.")
 
         self._thresholds = thresholds
         self._coefficients = coefficients
+        interests = (coefficients > 0).astype(int)
         super().__init__(utility_repr=np.array([thresholds, coefficients]),
                          agent_utility_repr=agent_utility_repr,
                          interests=interests)
@@ -131,12 +128,6 @@ class TargetUtility(UtilityFunction):
         # MOGridworld class) and time and wall penalties are 1 per time step, so the translation ought to be
         # of 31.
         return np.min((rewards * [-1, -1, 1, 1, 1, 1] + [31, 31, 0, 0, 0, 0]) / self._target)
-
-
-def polinomial_utility(reward: np.ndarray, coefficients: np.ndarray) -> float:
-    poly = np.expand_dims(reward, axis=1).repeat(coefficients.shape[1],
-                                                 axis=1)**np.arange(coefficients.shape[1])
-    return np.sum(poly * coefficients)
 
 
 def sample_linear_weights() -> np.ndarray:
@@ -212,6 +203,10 @@ def sample_target() -> np.ndarray:
     Returns:
         target: The target reward vector for the agent to achieve in the gridworld environment
     """
+    targets = np.random.choice(np.arange(3), size=4)
+    if np.all(targets == 0):
+        return sample_target()
+    return np.concatenate([[31, 31], targets])
 
 
 def sample_utility(utility_type: str = 'linear',
