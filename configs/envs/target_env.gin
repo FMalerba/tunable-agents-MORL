@@ -1,0 +1,5 @@
+include "envs/replication_env.gin"
+
+train_eval.env_id = "target_env"           # Used to name the folder for logs/summaries/checkpoints
+
+GatheringWrapper.utility_type = 'target'
