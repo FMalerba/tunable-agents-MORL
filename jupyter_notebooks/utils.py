@@ -1,23 +1,24 @@
 import gin
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import os
+import pandas as pd
+from scipy.stats import wasserstein_distance
 
 from tf_agents.trajectories import time_step as ts
 from tf_agents.environments import py_environment
-from tf_agents.policies import tf_policy
+from tunable_agents.agent import DQNAgent
 
-from tqdm import tqdm
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 
 # LISTS THAT ARE USED FOR CONSISTENT SORTING OF ENVIRONMENTS AND MODELS
-ENVS = ["replication_env", "threshold_env", "threshold_env_linear",
-        "cum_rewards_env", "cum_threshold_env", "cum_threshold_env_linear"]
+ENVS = ["replication_env", "threshold_env", "threshold_env_linear", "target_env",
+        "cum_rewards_env", "cum_threshold_env", "cum_threshold_env_linear", "cum_target_env"]
 MODELS = ["64_64_model", "less_utils_64_64_model",
           "128_128_64_model", "less_utils_128_128_64_model",
-          "256_128_128_64_64_model", "less_utils_256_128_128_64_64_model"]
+          "256_128_128_64_64_model", "less_utils_256_128_128_64_64_model",
+          "512_256_256_128_128_64_model"]
 
 
 def load_results(path: str) -> Dict[str, np.ndarray]:
@@ -93,37 +94,15 @@ def render_time_step(time_step: ts.TimeStep, ax, action: int = None) -> None:
     ax.axis('off')
 
 
-def policy_play_episode(env: py_environment.PyEnvironment, policy: tf_policy.TFPolicy) -> None:
+def agent_play_episode(env: py_environment.PyEnvironment, agent: DQNAgent) -> None:
     time_step = env.reset()
-    policy_state = policy.get_initial_state(1)
     
     plt.figure(figsize=(11, 6), dpi=200)
     i = 1
     ax = plt.subplot(4, 8, i)
     render_time_step(time_step, ax)
     while not time_step.is_last():
-        action_step = policy.action(time_step, policy_state)
-        time_step = env.step(action_step.action)
-        policy_state = action_step.state
-        i += 1
-        ax = plt.subplot(4, 8, i)
-        render_time_step(time_step, ax, action_step.action)
-    
-    plt.tight_layout()
-    plt.show()
-
-
-def model_play_episode(env: py_environment.PyEnvironment, model) -> None:
-    time_step = env.reset()
-        
-    plt.figure(figsize=(11, 6), dpi=200)
-    i = 1
-    ax = plt.subplot(4, 8, i)
-    render_time_step(time_step, ax)
-    while not time_step.is_last():
-        state = time_step.observation['state_obs']
-        weights = time_step.observation['utility_representation']
-        action = np.argmax(model.predict([state[np.newaxis], weights[np.newaxis]]))
+        action = agent.greedy_policy(time_step.observation)
         time_step = env.step(action)
         i += 1
         ax = plt.subplot(4, 8, i)
@@ -131,40 +110,6 @@ def model_play_episode(env: py_environment.PyEnvironment, model) -> None:
     
     plt.tight_layout()
     plt.show()
-
-
-def policy_evaluate_utility(env: py_environment.PyEnvironment, policy: tf_policy.TFPolicy, n_episodes: int) -> float:
-    utilities = np.empty(shape=(n_episodes), dtype=np.float32)
-    
-    for i in tqdm(range(n_episodes)):
-        time_step = env.reset()
-        policy_state = policy.get_initial_state(1)
-        while not time_step.is_last():
-            action_step = policy.action(time_step, policy_state)
-            time_step = env.step(action_step.action)
-            policy_state = action_step.state
-        
-        utilities[i] = env._prev_step_utility
-        
-    
-    return utilities
-
-
-def model_evaluate_utility(env: py_environment.PyEnvironment, model, n_episodes: int) -> float:
-    utilities = np.empty(shape=(n_episodes), dtype=np.float32)
-    
-    for i in tqdm(range(n_episodes)):
-        time_step = env.reset()
-        while not time_step.is_last():
-            state = time_step.observation['state_obs']
-            weights = time_step.observation['utility_representation']
-            action = np.argmax(model.predict([state[np.newaxis], weights[np.newaxis]]))
-            time_step = env.step(action)
-            
-        utilities[i] = env._prev_step_utility
-        
-    
-    return utilities
 
 
 @gin.configurable
