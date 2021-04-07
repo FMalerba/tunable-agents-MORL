@@ -163,7 +163,8 @@ def train_eval(
         tf.summary.scalar(name='Average Reward', data=avg_reward, step=epoch_counter)
 
         print("\rTime: {}, Episode: {}, Reward: {}, Avg Reward {}, eps: {:.3f}".format(
-            datetime.now() - start_time, epoch_counter.numpy(), episode_reward, avg_reward,
+            datetime.now() - start_time, epoch_counter.numpy(), np.round(episode_reward, 2),
+            np.round(avg_reward, 2),
             decaying_epsilon().numpy()),
               end="")
 
