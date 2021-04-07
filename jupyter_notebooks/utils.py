@@ -43,6 +43,50 @@ def sorting(key: str) -> int:
     return env_sorting[env]*(max(model_sorting.values())+1) + model_sorting[model]
 
 
+def wds_tables(results: Dict[str, List[np.ndarray]]) -> Tuple[pd.DataFrame]:
+    keys = sorted(results.keys(), key=sorting)
+    intra_wds = pd.DataFrame(columns=["Environment", "Model", "WD"])
+    inter_wds = pd.DataFrame(columns=["Environment", "Models", "WD"])
+        
+    for key in keys:
+        env, model = key.split("-")
+        wds = [wasserstein_distance(results[key][i], results[key][j])
+               for i in range(len(results[key])) for j in range(i+1, len(results[key]))]
+        mean_wd = np.round(np.mean(wds), 2)
+        std_err = np.round(np.std(wds)/np.sqrt(len(wds)), 2)
+        val = f"{mean_wd} (+-{std_err})"
+        intra_wds = intra_wds.append({"Environment": env,
+                        "Model": model,
+                        "WD": val
+                        },
+                       ignore_index=True)
+    
+    
+    for i in range(len(keys)):
+        for j in range(i+1, len(keys)):
+            key_1, key_2 = keys[i], keys[j]
+            if key_1.split("-")[0] == key_2.split("-")[0]:
+                env, model_1 = key_1.split("-")
+                model_2 = key_2.split("-")[1]
+                wds = [wasserstein_distance(result_1, result_2)
+                       for result_1 in results[key_1] for result_2 in results[key_2]]
+                mean_wd = np.round(np.mean(wds), 2)
+                std_err = np.round(np.std(wds)/np.sqrt(len(wds)), 2)
+                val = f"{mean_wd} (+-{std_err})"
+                inter_wds = inter_wds.append({"Environment": env,
+                                              "Models": "-".join([model_1, model_2]),
+                                              "WD": val
+                                              },
+                                             ignore_index=True)
+    
+    intra_wds['Environment'] = pd.Categorical(intra_wds["Environment"], ENVS)
+    intra_wds['Model'] = pd.Categorical(intra_wds["Model"], MODELS)
+    inter_wds['Environment'] = pd.Categorical(inter_wds["Environment"], ENVS)
+    # inter_wds['Models'] = pd.Categorical(inter_wds["Models"], MODELS)
+    
+    return intra_wds, inter_wds
+
+
 def utilities_table(results: Dict[str, List[np.ndarray]]) -> pd.DataFrame:
     keys = sorted(results.keys(), key=sorting)
     df = pd.DataFrame(columns=["Environment", "Model", "Utility"])
