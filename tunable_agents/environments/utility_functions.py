@@ -203,7 +203,7 @@ def sample_target() -> np.ndarray:
     Returns:
         target: The target reward vector for the agent to achieve in the gridworld environment
     """
-    targets = np.random.choice(np.arange(3), size=4)
+    targets = np.random.choice(np.arange(4), size=4)
     if np.all(targets == 0):
         return sample_target()
     return np.concatenate([[31, 31], targets]).astype(np.float32)
