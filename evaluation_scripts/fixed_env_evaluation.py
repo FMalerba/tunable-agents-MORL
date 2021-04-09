@@ -9,16 +9,23 @@ from tqdm import tqdm
 
 from tunable_agents import utility, agent
 from tunable_agents.environments.gathering_env.gathering_env import GatheringWrapper
-from tunable_agents.environments.utility_functions import LinearUtility, ThresholdUtility, UtilityFunction
+from tunable_agents.environments.utility_functions import LinearUtility, TargetUtility, ThresholdUtility, UtilityFunction
 
 from typing import List
 
 ENV_KWARGS = {
     'replication_env': {
         "utility_type": "linear"
-    },  # fixed_env config is based off of replication env so no change to kwargs is needed
+    },
     'cum_rewards_env': {
         "utility_type": "linear",
+        "cumulative_rewards_flag": True
+    },
+    'target_env': {
+        "utility_type": 'target'
+    },
+    'cum_target_env': {
+        "utility_type": 'target',
         "cumulative_rewards_flag": True
     },
     'threshold_env': {
@@ -40,7 +47,8 @@ def utility_list(utility_type: str):
     if utility_type == "linear":
         return [
             LinearUtility(weights=np.array([-1, -5, r0, r1, r2, r3], dtype=np.float32))
-            for r0 in np.arange(-20, 21, step=2) for r1 in np.arange(-20, 21, step=2)
+            for r0 in np.arange(-20, 21, step=2)
+            for r1 in np.arange(-20, 21, step=2)
             for r2 in np.arange(-20, 21, step=2)
             for r3 in np.arange(-20, 21, step=2)
             if (r0 > 0) or (r1 > 0) or (r2 > 0) or (r3 > 0)
@@ -49,11 +57,25 @@ def utility_list(utility_type: str):
         return [
             ThresholdUtility(thresholds_and_ceofficients=np.array(
                 [[0, 0, thresh0, thresh1, thresh2, thresh3], [-1, -5, r0, r1, r2, r3]], dtype=np.float32))
-            for thresh0 in range(3) for thresh1 in range(3) for thresh2 in range(3) for thresh3 in range(3)
-            for r0 in np.arange(-20, 21, step=6) for r1 in np.arange(-20, 21, step=6)
+            for thresh0 in range(3)
+            for thresh1 in range(3)
+            for thresh2 in range(3)
+            for thresh3 in range(3)
+            for r0 in np.arange(-20, 21, step=6) 
+            for r1 in np.arange(-20, 21, step=6)
             for r2 in np.arange(-20, 21, step=6)
             for r3 in np.arange(-20, 21, step=6)
             if (r0 > 0) or (r1 > 0) or (r2 > 0) or (r3 > 0)
+        ]
+    elif utility_type == "target":
+        return [
+            TargetUtility(target=np.array(
+                [0, 0, target0, target1, target2, target3], dtype=np.float32))
+            for target0 in range(3)
+            for target1 in range(3)
+            for target2 in range(3)
+            for target3 in range(3)
+            if (target0 > 0) or (target1 > 0) or (target2 > 0) or (target3 > 0)
         ]
     raise ValueError("Got unexpected utility_type argument.")
 
