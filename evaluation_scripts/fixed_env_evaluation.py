@@ -71,10 +71,10 @@ def utility_list(utility_type: str):
         return [
             TargetUtility(target=np.array(
                 [0, 0, target0, target1, target2, target3], dtype=np.float32))
-            for target0 in range(3)
-            for target1 in range(3)
+            for target0 in range(4)
+            for target1 in range(4)
             for target2 in range(3)
-            for target3 in range(3)
+            for target3 in range(4)
             if (target0 > 0) or (target1 > 0) or (target2 > 0) or (target3 > 0)
         ]
     raise ValueError("Got unexpected utility_type argument.")
