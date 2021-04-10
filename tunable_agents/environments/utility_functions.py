@@ -148,7 +148,48 @@ def sample_linear_weights() -> np.ndarray:
     return np.concatenate((w01, pref))
 
 
+def dense_sample_linear_weights() -> np.ndarray:
+    """
+    Samples a 6-long vector of preferences for the gathering environment replication study.
+    Each preference weight is randomly sampled between -20 and 20 with the exception of the
+    first two entries which are fixed at -1 and -5. They respectively signal the punishment
+    for taking a further time-step and the punishment for hitting a wall
+    """
+    # The 4 entries of pref are the preference for (respectively): Green, Red, Yellow, Other agent taking red
+    pref = np.random.choice(np.arange(-20, 21, dtype=np.float32), size=4)
+    # An environment with a negative preference vector will simply stop the episode after the first step.
+    # It is therefore pointless to sample such a vector.
+    if np.all(pref <= 0):
+        return sample_linear_weights()
+
+    w01 = np.array([-1, -5], dtype=np.float32)
+    return np.concatenate((w01, pref))
+
+
 def sample_thresholds_and_coefficients() -> np.ndarray:
+    """
+    Samples a 6-long vector of thresholds for the gathering environment and a 6-long 
+    vector of coefficients to be applied once the thresholds are exceeded.
+    All thresholds and coefficients are sampled at random between -20 and 20 in steps of 5 with the exception
+    of the first two entries which are fixed at a threshold of 0 and coefficients of  -1 and -5.
+    They respectively signal the punishment for taking a further time-step and the punishment for hitting a wall.
+    """
+    # The 4 entries of thresholds and coefficients are for (respectively): Green, Red, Yellow, Other agent taking red
+    thresholds = np.random.choice(np.arange(0, 4, dtype=np.float32), size=4)
+    coefficients = np.random.choice(np.arange(-20, 21, step=5, dtype=np.float32), size=4)
+
+    # An environment with a negative preference vector will simply stop the episode after the first step.
+    # It is therefore pointless to sample such a vector.
+    if np.all(coefficients <= 0):
+        return sample_thresholds_and_coefficients()
+
+    w01 = np.array([-1, -5], dtype=np.float32)
+    return np.array(
+        [np.concatenate(([0, 0], thresholds)).astype(np.float32),
+         np.concatenate((w01, coefficients))])
+
+
+def dense_sample_thresholds_and_coefficients() -> np.ndarray:
     """
     Samples a 6-long vector of thresholds for the gathering environment and a 6-long 
     vector of coefficients to be applied once the thresholds are exceeded.
@@ -158,7 +199,7 @@ def sample_thresholds_and_coefficients() -> np.ndarray:
     """
     # The 4 entries of thresholds and coefficients are for (respectively): Green, Red, Yellow, Other agent taking red
     thresholds = np.random.choice(np.arange(0, 4, dtype=np.float32), size=4)
-    coefficients = np.random.choice(np.arange(-20, 21, step=5, dtype=np.float32), size=4)
+    coefficients = np.random.choice(np.arange(-20, 21, dtype=np.float32), size=4)
 
     # An environment with a negative preference vector will simply stop the episode after the first step.
     # It is therefore pointless to sample such a vector.
@@ -177,12 +218,34 @@ def sample_linear_thresholds() -> np.ndarray:
     vector of coefficients to be applied once the thresholds are exceeded.
     The sampled vectors are selected so as to be equivalent to a linear utility sampling (i.e. the 
     thresholds are all set to 0).
+    The coefficients are sampled at random between -20 and 20 with step 5. The first two entries
+    are instead fixed at -1 and -5. They respectively signal the punishment for taking a
+    further time-step and the punishment for hitting a wall.
+    """
+    # The 4 entries of thresholds and coefficients are for (respectively): Green, Red, Yellow, Other agent taking red
+    coefficients = np.random.choice(np.arange(-20, 21, step=5, dtype=np.float32), size=4)
+
+    # An environment with a negative preference vector will simply stop the episode after the first step.
+    # It is therefore pointless to sample such a vector.
+    if np.all(coefficients <= 0):
+        return sample_thresholds_and_coefficients()
+
+    w01 = np.array([-1, -5], dtype=np.float32)
+    return np.array([[0, 0, 0, 0, 0, 0], np.concatenate((w01, coefficients))], dtype=np.float32)
+
+
+def dense_sample_linear_thresholds() -> np.ndarray:
+    """
+    Samples a 6-long vector of thresholds for the gathering environment and a 6-long 
+    vector of coefficients to be applied once the thresholds are exceeded.
+    The sampled vectors are selected so as to be equivalent to a linear utility sampling (i.e. the 
+    thresholds are all set to 0).
     The coefficients are sampled at random with the exception of the first two entries
     which are fixed at -1 and -5. They respectively signal the punishment for taking a
     further time-step and the punishment for hitting a wall.
     """
     # The 4 entries of thresholds and coefficients are for (respectively): Green, Red, Yellow, Other agent taking red
-    coefficients = np.random.choice(np.arange(-20, 21, step=5, dtype=np.float32), size=4)
+    coefficients = np.random.choice(np.arange(-20, 21, dtype=np.float32), size=4)
 
     # An environment with a negative preference vector will simply stop the episode after the first step.
     # It is therefore pointless to sample such a vector.
@@ -222,15 +285,24 @@ def sample_utility(utility_type: str = 'linear',
             return LinearUtility(weights=utility_repr)
         weights = sample_linear_weights()
         return LinearUtility(weights=weights)
+    elif utility_type == 'dense_linear':
+        weights = dense_sample_linear_weights()
+        return LinearUtility(weights=weights)
     elif utility_type == 'threshold':
         if utility_repr is not None:
             return ThresholdUtility(thresholds_and_ceofficients=utility_repr)
         thresholds_and_coefficients = sample_thresholds_and_coefficients()
         return ThresholdUtility(thresholds_and_ceofficients=thresholds_and_coefficients)
+    elif utility_type == 'dense_threshold':
+        thresholds_and_coefficients = dense_sample_thresholds_and_coefficients()
+        return ThresholdUtility(thresholds_and_ceofficients=thresholds_and_coefficients)
     elif utility_type == "linear_threshold":
         if utility_repr is not None:
             return ThresholdUtility(thresholds_and_ceofficients=utility_repr)
         thresholds_and_coefficients = sample_linear_thresholds()
+        return ThresholdUtility(thresholds_and_ceofficients=thresholds_and_coefficients)
+    elif utility_type == "dense_linear_threshold":
+        thresholds_and_coefficients = dense_sample_linear_thresholds()
         return ThresholdUtility(thresholds_and_ceofficients=thresholds_and_coefficients)
     elif utility_type == "target":
         if utility_repr is not None:
