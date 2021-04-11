@@ -6,7 +6,6 @@ import tensorflow as tf
 
 from tf_agents.environments import py_environment
 
-from tunable_agents.environments.DST_env import DST_env
 from tunable_agents.environments.gathering_env import gathering_env
 from tunable_agents import external_configurables  # Don't remove, it's necessary to configure TF Layers
 
@@ -33,7 +32,7 @@ def load_gin_configs(gin_files: List[str], gin_bindings: List[str]):
 
 
 @gin.configurable
-def create_environment(game: str = 'gathering') -> py_environment.PyEnvironment:
+def create_environment(game: str = 'gathering', **env_kwargs) -> py_environment.PyEnvironment:
     """Creates the environment.
     
     Args:
@@ -42,10 +41,8 @@ def create_environment(game: str = 'gathering') -> py_environment.PyEnvironment:
     Returns:
     A PyEnvironment object environment.
     """
-    if game == 'DST':
-        return DST_env.DSTWrapper()
-    elif game == 'gathering':
-        return gathering_env.GatheringWrapper()
+    if game == 'gathering':
+        return gathering_env.GatheringWrapper(**env_kwargs)
     raise NotImplementedError('Game is not among the implemented games')
 
 
