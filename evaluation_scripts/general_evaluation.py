@@ -13,8 +13,10 @@ from tunable_agents import utility, agent
 
 ENV_DICT = {
     "cum_rewards_env": "cumulative_rewards_env.gin",
+    "cum_target_env": "cumulative_target_env.gin",
     "cum_threshold_env": "cumulative_threshold_env.gin",
     "replication_env": "replication_env.gin",
+    "target_env": "target_env.gin",
     "threshold_env": "threshold_utility_env.gin"
 }
 
@@ -62,6 +64,8 @@ def main(_):
 
     if FLAGS.linear_threshold and not "threshold" in FLAGS.experiment_dir:
         raise ValueError("Can't evaluate a non threshold agent on threshold utilities.")
+    if FLAGS.dense and "target" in FLAGS.experiment_dir:
+        raise ValueError("Can't sample densely for target utility function.")
 
     experiment_dir: str = FLAGS.experiment_dir
     model_dir = os.path.join(experiment_dir, 'model')
@@ -75,9 +79,10 @@ def main(_):
     ]
     gin_bindings = ["GatheringWrapper.utility_type='linear_threshold'"] if FLAGS.linear_threshold else []
     utility.load_gin_configs(gin_files, gin_bindings)
+    utility_type = ("dense_" if FLAGS.dense else "") + gin.query_parameter("GatheringWrapper.utility_type")
 
     # Loading trained agent model
-    env = utility.create_environment()
+    env = utility.create_environment(utility_type=utility_type)
     tf_agent = agent.DQNAgent(epsilon=0, obs_spec=env.observation_spec())
     tf_agent.load_model(model_path)
 
@@ -89,12 +94,15 @@ def main(_):
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
 
+    results_file_name = experiment_dir.split("/")[-1] + ".npy"
     if FLAGS.linear_threshold:
-        results_file_name = experiment_dir.split("/")[-1].split("-")
+        results_file_name = results_file_name.split("-")
         results_file_name[1] += "_linear"
-        results_file_name = "-".join(results_file_name) + ".npy"
-    else:
-        results_file_name = experiment_dir.split("/")[-1] + ".npy"
+        results_file_name = "-".join(results_file_name)
+    if FLAGS.dense:
+        results_file_name = results_file_name.split("-")
+        results_file_name[1] = "dense_" + results_file_name[1]
+        results_file_name = "-".join(results_file_name)
 
     results_path = os.path.join(results_dir, results_file_name)
     if os.path.exists(results_path):
@@ -114,6 +122,8 @@ if __name__ == '__main__':
     flags.DEFINE_bool(
         'linear_threshold', False, "Whether to run a ThresholdUtility-type agent on "
         "utilities that are mathematically equivalent to linear ones.")
+    flags.DEFINE_bool(
+        'dense', False, "Whether to sample utilities using the dense sampling functions.")
     FLAGS = flags.FLAGS
     flags.mark_flag_as_required('experiment_dir')
     flags.mark_flag_as_required('results_dir')
