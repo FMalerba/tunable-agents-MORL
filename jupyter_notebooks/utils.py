@@ -14,8 +14,10 @@ from typing import Dict, List, Tuple
 
 # LISTS THAT ARE USED FOR CONSISTENT SORTING OF ENVIRONMENTS AND MODELS
 ENVS = [
-    "replication_env", "target_env", "threshold_env", "threshold_env_linear", "cum_rewards_env",
-    "cum_target_env", "cum_threshold_env", "cum_threshold_env_linear"
+    "replication_env", "dense_replication_env", "target_env", "threshold_env", "dense_threshold_env",
+    "threshold_env_linear", "dense_threshold_env_linear", "cum_rewards_env", "dense_cum_rewards_env",
+    "cum_target_env", "cum_threshold_env", "dense_cum_threshold_env", "cum_threshold_env_linear",
+    "dense_cum_threshold_env_linear"
 ]
 MODELS = [
     "64_64_model", "less_utils_64_64_model", "128_128_64_model", "less_utils_128_128_64_model",
@@ -26,15 +28,16 @@ MODELS = [
 def load_results(path: str) -> Dict[str, np.ndarray]:
     keys = set()
     for file in os.listdir(path):
-        keys.add("-".join(file.split("-")[:2]))
+        file_path = os.path.join(path, file)
+        if os.path.isdir(file_path) and len(os.listdir(file_path)) == 6:
+            keys.add(file)
 
     results = dict()
     for key in keys:
         new_key = "-".join(key.split("-")[::-1])
+        key_folder = os.path.join(path, key)
         results[new_key] = [
-            np.load(path + file, allow_pickle=True)
-            for file in os.listdir(path)
-            if key.split("-") == file.split("-")[:2]
+            np.load(os.path.join(key_folder, file), allow_pickle=True) for file in os.listdir(key_folder)
         ]
 
     return results
@@ -51,7 +54,7 @@ def sorting(key: str) -> int:
 
 def domination_metric(u: np.ndarray, v: np.ndarray) -> float:
     """Used to compute whether the reward vector u dominates v, viceversa, or neither.
-    Do note that this is not a metric in the mathematical sense of the word, but this 
+    Do note that this is not a metric in the mathematical sense of the word, but this
     is not a hinderance to its use in the context in which it is used.
 
     Args:
@@ -142,16 +145,17 @@ def fixed_env_table(results: Dict[str, List[np.ndarray]]) -> pd.DataFrame:
         if "less_utils" in key:
             continue
         env, model = key.split("-")
-        df = df.append(
-            {
-                "Environment":
-                    env,
-                "Model":
-                    model,
-                "Uniques":
-                    np.round(np.mean([np.unique(result, axis=0).shape[0] for result in results[key]]), 1)
-            },
-            ignore_index=True)
+
+        uniques = [np.unique(result, axis=0).shape[0] for result in results[key]]
+        mean_val = np.round(np.mean(uniques), 1)
+        std_err = np.round(np.std(uniques) / np.sqrt(len(uniques)), 2)
+
+        df = df.append({
+            "Environment": env,
+            "Model": model,
+            "Uniques": f"{mean_val} (+-{std_err})"
+        },
+                       ignore_index=True)
 
     df['Environment'] = pd.Categorical(df["Environment"], ENVS)
     df['Model'] = pd.Categorical(df["Model"], MODELS)
@@ -177,18 +181,20 @@ def non_dominated_table(results: Dict[str, List[np.ndarray]]) -> pd.DataFrame:
             m = uniques[index].shape[0]
             is_non_dominated = np.ones(shape=(m,), dtype=bool)
             for i in range(m):
-                start_range = m*i + i+1 - ((i + 2) * (i + 1)) // 2
-                end_range = m*i + m-1 - ((i + 2) * (i + 1)) // 2
+                start_range = m * i + i + 1 - ((i + 2) * (i + 1)) // 2
+                end_range = m * i + m - 1 - ((i + 2) * (i + 1)) // 2
                 i_range = domination_matrix[start_range:end_range]
                 is_non_dominated[i] = is_non_dominated[i] and np.all(i_range != -1)
                 is_non_dominated[i + np.argwhere(i_range == 1)]
-            
+
             non_dominated.append(np.sum(is_non_dominated))
 
+        mean_val = np.round(np.mean(non_dominated), 1)
+        std_err = np.round(np.std(non_dominated) / np.sqrt(len(non_dominated)), 2)
         df = df.append({
             "Environment": env,
             "Model": model,
-            "Non-Dominated": np.round(np.mean(non_dominated), 1)
+            "Non-Dominated": f"{mean_val} (+-{std_err})"
         },
                        ignore_index=True)
 
