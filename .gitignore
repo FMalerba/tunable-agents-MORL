@@ -133,3 +133,4 @@ dmypy.json
 
 # Results from the jupyter notebook analysis
 jupyter_notebooks/results
+jupyter_notebooks/cleanup_scripts
