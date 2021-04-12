@@ -45,7 +45,7 @@ def eval_agent(env: py_environment.PyEnvironment,
 
             episode_reward += reward
 
-        assert episode_reward == env._prev_step_utility
+        assert np.isclose(episode_reward, env._prev_step_utility, atol=1e-06)
         if reward_vector:
             results.append([observations['utility_representation'], env._cumulative_rewards])
         else:
