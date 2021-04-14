@@ -177,7 +177,7 @@ class DQNAgent:
         target_Q_values = target_Q_values.reshape(-1, 1)  # Make column vector
 
         # Mask to only consider action taken
-        mask = tf.one_hot(actions, self._output_size)  # Number of actions
+        mask = tf.one_hot(actions, self._output_size)  #pylint: disable=no-value-for-parameter
         # Compute loss and gradient for predictions on 'states'
         with tf.GradientTape() as tape:
             all_Q_values = self._model([states["state_obs"]] +
