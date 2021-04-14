@@ -15,12 +15,11 @@ layer_15/Dense.name = "Dense_6"
 layer_16/Dropout.rate = 0.2 
 layer_16/Dropout.name = "Dropout_8"
 
-
-build_model.postprocessing_layers = [@layer_5/Dense(), @layer_6/Dropout(),
-                                     @layer_7/Dense(), @layer_8/Dropout(),
-                                     @layer_9/Dense(), @layer_10/Dropout(),
-                                     @layer_11/Dense(), @layer_12/Dropout(),
-                                     @layer_13/Dense(), @layer_14/Dropout(),
-                                     @layer_15/Dense(), @layer_16/Dropout(),
-                                     @output/Dense()]
+postprocessing_layers = [@layer_5/Dense(), @layer_6/Dropout(),
+                         @layer_7/Dense(), @layer_8/Dropout(),
+                         @layer_9/Dense(), @layer_10/Dropout(),
+                         @layer_11/Dense(), @layer_12/Dropout(),
+                         @layer_13/Dense(), @layer_14/Dropout(),
+                         @layer_15/Dense(), @layer_16/Dropout(),
+                         @output/Dense()]
 

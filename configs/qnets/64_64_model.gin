@@ -31,6 +31,9 @@ output/Dense.units = 5
 output/Dense.name = "Q_values"
 
 
-build_model.image_preprocessing_layers = [@layer_1/Conv2D(), @layer_2/Dropout(), @layer_3/Conv2D(), @layer_4/Dropout(), @Flatten()]
-build_model.postprocessing_layers = [@layer_5/Dense(), @layer_6/Dropout(), @layer_7/Dense(), @layer_8/Dropout(), @output/Dense()]
+image_preprocessing_layers = [@layer_1/Conv2D(), @layer_2/Dropout(), @layer_3/Conv2D(), @layer_4/Dropout(), @Flatten()]
+postprocessing_layers = [@layer_5/Dense(), @layer_6/Dropout(), @layer_7/Dense(), @layer_8/Dropout(), @output/Dense()]
+
+DQNAgent.image_preprocessing_layers = %image_preprocessing_layers
+DQNAgent.postprocessing_layers = %postprocessing_layers
 

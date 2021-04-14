@@ -83,7 +83,8 @@ class DQNAgent:
                  epsilon: Callable[[], float],
                  obs_spec: Dict[str, ArraySpec],
                  learning_rate: float = 1e-4,
-                 gamma: float = 0.99):
+                 gamma: float = 0.99,
+                 **build_model_kwargs):
         self._epsilon = epsilon
         self._obs_spec = obs_spec
         self._learning_rate = learning_rate  # Learning rate
@@ -91,15 +92,14 @@ class DQNAgent:
         self._output_size = 5
 
         # Build both models
-        self._model = self._build_model()
-        self._target_model = self._build_model()
+        self._model = self._build_model(**build_model_kwargs)
+        self._target_model = self._build_model(**build_model_kwargs)
         # Make weights the same
         self._target_model.set_weights(self._model.get_weights())
 
         self._learning_plot_initialised = False
         #self.env_penalty_sign = env.penalty_sign
 
-    @gin.configurable(name_or_fn='build_model')
     def _build_model(self, image_preprocessing_layers: List[keras.layers.Layer],
                      postprocessing_layers: List[keras.layers.Layer]) -> keras.Model:
         """

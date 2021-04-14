@@ -12,8 +12,8 @@ layer_10/Dropout.rate = 0.2
 layer_10/Dropout.name = "Dropout_5"
 
 
-build_model.postprocessing_layers = [@layer_5/Dense(), @layer_6/Dropout(),
-                                     @layer_7/Dense(), @layer_8/Dropout(),
-                                     @layer_9/Dense(), @layer_10/Dropout(),
-                                     @output/Dense()]
+postprocessing_layers = [@layer_5/Dense(), @layer_6/Dropout(),
+                         @layer_7/Dense(), @layer_8/Dropout(),
+                         @layer_9/Dense(), @layer_10/Dropout(),
+                         @output/Dense()]
 
