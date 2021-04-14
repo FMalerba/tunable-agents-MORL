@@ -144,18 +144,15 @@ class DQNAgent:
         probability epsilon. With probability 1 - epsilon select random action.
         """
         if np.random.rand() < self._epsilon():
-            return np.random.choice(5)
+            return np.random.choice(self._output_size)
         else:
-            Q_values = self._model.predict(
-                [observations["state_obs"][np.newaxis]] +
-                [observations[key][np.newaxis] for key in sorted(observations.keys() - ["state_obs"])])
-            return np.argmax(Q_values)
+            return self.greedy_policy(observations=observations)
 
     def greedy_policy(self, observations: Observation) -> int:
         """
         Select greedy action from model output based on current state.
         """
-        Q_values = self._model.predict(
+        Q_values = self._model(
             [observations["state_obs"][np.newaxis]] +
             [observations[key][np.newaxis] for key in sorted(observations.keys() - ["state_obs"])])
         return np.argmax(Q_values)
