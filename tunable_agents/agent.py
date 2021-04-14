@@ -168,7 +168,7 @@ class DQNAgent:
         states, actions, rewards, next_states, dones = experiences
 
         # Compute target Q values from 'next_states'
-        next_Q_values = self._target_model.predict(
+        next_Q_values = self._target_model(
             [next_states["state_obs"]] +
             [next_states[key] for key in sorted(next_states.keys() - ["state_obs"])])
 
