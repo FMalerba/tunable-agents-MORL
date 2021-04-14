@@ -100,9 +100,9 @@ def main(_):
         results_file_name = results_file_name.split("-")
         results_file_name[1] += "_linear"
         results_file_name = "-".join(results_file_name)
-    if FLAGS.dense:
+    if FLAGS.sampling:
         results_file_name = results_file_name.split("-")
-        results_file_name[1] = "dense_" + results_file_name[1]
+        results_file_name[1] = FLAGS.sampling + "_" + results_file_name[1]
         results_file_name = "-".join(results_file_name)
 
     results_path = os.path.join(results_dir, results_file_name)
