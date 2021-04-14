@@ -10,7 +10,6 @@ from tqdm import tqdm
 from tf_agents.environments import py_environment
 from tunable_agents import utility, agent
 
-
 ENV_DICT = {
     "cum_rewards_env": "cumulative_rewards_env.gin",
     "cum_target_env": "cumulative_target_env.gin",
@@ -64,8 +63,8 @@ def main(_):
 
     if FLAGS.linear_threshold and not "threshold" in FLAGS.experiment_dir:
         raise ValueError("Can't evaluate a non threshold agent on threshold utilities.")
-    if FLAGS.dense and "target" in FLAGS.experiment_dir:
-        raise ValueError("Can't sample densely for target utility function.")
+    if FLAGS.sampling and "target" in FLAGS.experiment_dir:
+        raise ValueError("Can't select sampling for target utility function.")
 
     experiment_dir: str = FLAGS.experiment_dir
     model_dir = os.path.join(experiment_dir, 'model')
@@ -79,7 +78,8 @@ def main(_):
     ]
     gin_bindings = ["GatheringWrapper.utility_type='linear_threshold'"] if FLAGS.linear_threshold else []
     utility.load_gin_configs(gin_files, gin_bindings)
-    utility_type = ("dense_" if FLAGS.dense else "") + gin.query_parameter("GatheringWrapper.utility_type")
+    utility_type = ((FLAGS.sampling + "_" if FLAGS.sampling else "") +
+                    gin.query_parameter("GatheringWrapper.utility_type"))
 
     # Loading trained agent model
     env = utility.create_environment(utility_type=utility_type)
@@ -90,7 +90,8 @@ def main(_):
     results = eval_agent(env, tf_agent, FLAGS.n_episodes, FLAGS.reward_vector)
 
     # Save results
-    results_dir = os.path.join(FLAGS.results_dir, "reward_vector" if FLAGS.reward_vector else "utility_results")
+    results_dir = os.path.join(FLAGS.results_dir,
+                               "reward_vector" if FLAGS.reward_vector else "utility_results")
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
 
@@ -122,8 +123,8 @@ if __name__ == '__main__':
     flags.DEFINE_bool(
         'linear_threshold', False, "Whether to run a ThresholdUtility-type agent on "
         "utilities that are mathematically equivalent to linear ones.")
-    flags.DEFINE_bool(
-        'dense', False, "Whether to sample utilities using the dense sampling functions.")
+    flags.DEFINE_string('sampling', "",
+                        "Sampling to be used for the utilities. Can be default, 'dense' or 'continuous'")
     FLAGS = flags.FLAGS
     flags.mark_flag_as_required('experiment_dir')
     flags.mark_flag_as_required('results_dir')

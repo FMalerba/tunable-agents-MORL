@@ -354,6 +354,8 @@ def sample_utility(utility_type: str = 'linear',
     elif utility_type == 'continuous_linear':
         weights = continuous_sample_linear_weights()
         return LinearUtility(weights=weights)
+    
+    
     elif utility_type == 'threshold':
         if utility_repr is not None:
             return ThresholdUtility(thresholds_and_ceofficients=utility_repr)
@@ -365,6 +367,8 @@ def sample_utility(utility_type: str = 'linear',
     elif utility_type == 'continuous_threshold':
         thresholds_and_coefficients = continuous_sample_thresholds_and_coefficients()
         return ThresholdUtility(thresholds_and_ceofficients=thresholds_and_coefficients)
+    
+    
     elif utility_type == "linear_threshold":
         if utility_repr is not None:
             return ThresholdUtility(thresholds_and_ceofficients=utility_repr)
@@ -376,6 +380,8 @@ def sample_utility(utility_type: str = 'linear',
     elif utility_type == "continuous_linear_threshold":
         thresholds_and_coefficients = continuous_sample_linear_thresholds()
         return ThresholdUtility(thresholds_and_ceofficients=thresholds_and_coefficients)
+    
+    
     elif utility_type == "target":
         if utility_repr is not None:
             return TargetUtility(target=utility_repr)
