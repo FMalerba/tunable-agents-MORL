@@ -8,7 +8,7 @@ from tf_agents.environments import py_environment
 
 from tunable_agents.environments.gathering_env import gathering_env
 from tunable_agents import external_configurables  # Don't remove, it's necessary to configure TF Layers
-
+#pylint: disable=no-value-for-parameter
 
 def load_gin_configs(gin_files: List[str], gin_bindings: List[str]):
     """Loads gin configuration files.
@@ -59,7 +59,7 @@ def linear_decay(initial_epsilon: float, final_epsilon: float, step: tf.Variable
     """
     return tf.cast(tf.maximum(initial_epsilon - (initial_epsilon - final_epsilon) * (step / decay_time),
                               final_epsilon),
-                   dtype=tf.float32)
+                   tf.float32)
 
 
 @gin.configurable(denylist=['step'])

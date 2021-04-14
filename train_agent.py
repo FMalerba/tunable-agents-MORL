@@ -14,6 +14,7 @@ from tunable_agents import utility, agent
 import tensorflow as tf
 from tf_agents.environments import py_environment
 
+#pylint: disable=no-value-for-parameter
 
 @gin.configurable(allowlist=['collect_episodes'])
 def collection_step(env: py_environment.PyEnvironment, tf_agent: agent.DQNAgent,
