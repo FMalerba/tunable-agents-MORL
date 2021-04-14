@@ -103,8 +103,10 @@ def main(_):
 
                             results_path = os.path.join(results_dir, results_file_name)
                             
-                            aggregation_dir = "-".join(results_path.split("-")[:2])
+                            aggregation_dir = os.path.join(results_dir,
+                                                           "-".join(results_file_name.split("-")[:2]))
                             if (not os.path.exists(results_path)) and (not os.path.isdir(aggregation_dir)):
+                                print(f"\n\n{results_path}\n")
                                 np.save(results_path, None)     # Serves as a lock for parallel execution
                                 # Loading appropriate gin configs for the environment and this experiment
                                 qnet_gin, env_gin = experiment_dir.split("/")[-1].split("-")[:2]
