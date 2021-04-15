@@ -108,7 +108,9 @@ def main(_):
                             if (not os.path.exists(results_path)) and (not os.path.isdir(aggregation_dir)):
                                 print(f"\n\n{results_path}\n")
                                 np.save(results_path, None)     # Serves as a lock for parallel execution
+                                
                                 # Loading appropriate gin configs for the environment and this experiment
+                                gin.clear_config()
                                 qnet_gin, env_gin = experiment_dir.split("/")[-1].split("-")[:2]
                                 gin_config_path = "tunable-agents-MORL/configs/"
                                 gin_files = [
