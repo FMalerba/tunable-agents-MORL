@@ -68,7 +68,7 @@ def eval_agent(env: py_environment.PyEnvironment,
 
 def main(_):
     logging.set_verbosity(logging.INFO)
-    
+
     for env_type in ENVS:
         for model in MODELS:
             for training_id in TRAINING_IDS:
@@ -82,12 +82,13 @@ def main(_):
                                 # Can't select sampling for target utility function.
                                 continue
 
-                            experiment_dir = os.path.join(FLAGS.root_dir, "-".join([model, env_type, training_id]))
+                            experiment_dir = os.path.join(FLAGS.root_dir,
+                                                          "-".join([model, env_type, training_id]))
                             model_dir = os.path.join(experiment_dir, 'model')
                             model_path = os.path.join(model_dir, 'dqn_model.h5')
-                            
-                            results_dir = os.path.join(FLAGS.results_dir,
-                                                    "reward_vector" if reward_vector else "utility_results")
+
+                            results_dir = os.path.join(
+                                FLAGS.results_dir, "reward_vector" if reward_vector else "utility_results")
                             if not os.path.exists(results_dir):
                                 os.makedirs(results_dir)
 
@@ -102,21 +103,23 @@ def main(_):
                                 results_file_name = "-".join(results_file_name)
 
                             results_path = os.path.join(results_dir, results_file_name)
-                            
+
                             aggregation_dir = os.path.join(results_dir,
                                                            "-".join(results_file_name.split("-")[:2]))
                             if (not os.path.exists(results_path)) and (not os.path.isdir(aggregation_dir)):
                                 print(f"\n\n{results_path}\n")
-                                np.save(results_path, None)     # Serves as a lock for parallel execution
-                                
+                                np.save(results_path, None)  # Serves as a lock for parallel execution
+
                                 # Loading appropriate gin configs for the environment and this experiment
                                 gin.clear_config()
                                 qnet_gin, env_gin = experiment_dir.split("/")[-1].split("-")[:2]
                                 gin_config_path = "tunable-agents-MORL/configs/"
                                 gin_files = [
-                                    gin_config_path + "qnets/" + qnet_gin + ".gin", gin_config_path + "envs/" + ENV_DICT[env_gin]
+                                    gin_config_path + "qnets/" + qnet_gin + ".gin",
+                                    gin_config_path + "envs/" + ENV_DICT[env_gin]
                                 ]
-                                gin_bindings = ["GatheringWrapper.utility_type='linear_threshold'"] if lin_thresh else []
+                                gin_bindings = ["GatheringWrapper.utility_type='linear_threshold'"
+                                               ] if lin_thresh else []
                                 utility.load_gin_configs(gin_files, gin_bindings)
                                 utility_type = ((sampling if sampling else "") +
                                                 gin.query_parameter("GatheringWrapper.utility_type"))
@@ -127,7 +130,8 @@ def main(_):
                                 tf_agent.load_model(model_path)
 
                                 # Evaluating the agent
-                                results = eval_agent(env, tf_agent, 
+                                results = eval_agent(env,
+                                                     tf_agent,
                                                      200_000 if reward_vector else 40_000,
                                                      reward_vector=reward_vector)
 
