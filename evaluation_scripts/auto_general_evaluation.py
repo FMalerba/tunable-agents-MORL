@@ -127,7 +127,9 @@ def main(_):
                                 tf_agent.load_model(model_path)
 
                                 # Evaluating the agent
-                                results = eval_agent(env, tf_agent, 40_000, reward_vector=reward_vector)
+                                results = eval_agent(env, tf_agent, 
+                                                     200_000 if reward_vector else 40_000,
+                                                     reward_vector=reward_vector)
 
                                 # Save results
                                 np.save(results_path, results)
