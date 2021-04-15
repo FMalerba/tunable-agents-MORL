@@ -125,7 +125,7 @@ class GatheringWrapper(py_environment.PyEnvironment):
         state_obs = self._env.reset()
 
         self._cumulative_rewards.fill(0.0)
-        self._prev_step_utility = 0
+        self._prev_step_utility = self._utility_func(self._cumulative_rewards)
 
         self._obs_stacker.reset_stack()
         self._obs_stacker.add_observation(state_obs / 255)  # Normalizing obs in range [0, 1]
