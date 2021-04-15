@@ -81,7 +81,8 @@ class GatheringWrapper(py_environment.PyEnvironment):
                  gamma: float = 0.99,
                  history_size: int = 3,
                  utility_repr: np.ndarray = None,
-                 utility_type: str = 'linear') -> None:
+                 utility_type: str = 'linear',
+                 **gridworld_kwargs) -> None:
         super().__init__()
         # If a utility representation is passed to the environment, then the corresponding utility is fixed and won't be resampled
 
@@ -93,7 +94,7 @@ class GatheringWrapper(py_environment.PyEnvironment):
         self._cumulative_rewards_flag = cumulative_rewards_flag
         self._cumulative_rewards: np.ndarray = np.zeros(shape=(6,), dtype=np.float32)
 
-        self._env = MOGridworld()
+        self._env = MOGridworld(**gridworld_kwargs)
         self.gamma = gamma
         self._obs_stacker = create_obs_stacker(self, history_size=history_size)
 
