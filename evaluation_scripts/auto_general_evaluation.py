@@ -141,7 +141,7 @@ def main(_):
 
         experiment_dir = os.path.join(FLAGS.root_dir, "-".join([model, env_type, training_id]))
         model_path = os.path.join(experiment_dir, 'model', 'dqn_model.h5')
-        results_path = generate_results_path(FLAGS.results_dir,
+        results_path = generate_results_path(Path(FLAGS.results_dir),
                                              env=env_type,
                                              model=model,
                                              training_id=training_id,
