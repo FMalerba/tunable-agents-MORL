@@ -71,7 +71,8 @@ def check_lock(results_path: Path, reward_vector: bool) -> bool:
     """
     if results_path.exists():
         sampled_size = np.load(results_path, allow_pickle=True).shape[0]
-        lock_path = LOCKS_PATH.joinpath(results_path.name)
+        lock_name =results_path.name.rstrip(".npy") + ("reward_vector"*reward_vector) + ".npy"
+        lock_path = LOCKS_PATH.joinpath(lock_name)
         if (sampled_size >= (REWARD_VECTOR_EPISODES if reward_vector else UTILITY_EPISODES) or
                 lock_path.exists()):
             return False
@@ -79,21 +80,23 @@ def check_lock(results_path: Path, reward_vector: bool) -> bool:
     return True
 
 
-def acquire_lock(results_path: Path) -> None:
+def acquire_lock(results_path: Path, reward_vector: bool) -> None:
     """
     Adds a lock on the current evaluation run.
     """
     if not LOCKS_PATH.exists():
         LOCKS_PATH.mkdir()
-    lock_path = LOCKS_PATH.joinpath(results_path.name)
+    lock_name =results_path.name.rstrip(".npy") + ("reward_vector"*reward_vector) + ".npy"
+    lock_path = LOCKS_PATH.joinpath(lock_name)
     np.save(lock_path, None)
 
 
-def release_lock(results_path: Path) -> None:
+def release_lock(results_path: Path, reward_vector: bool) -> None:
     """
     Releases the lock on the current evaluation run.
     """
-    lock_path = LOCKS_PATH.joinpath(results_path.name)
+    lock_name =results_path.name.rstrip(".npy") + ("reward_vector"*reward_vector) + ".npy"
+    lock_path = LOCKS_PATH.joinpath(lock_name)
     os.remove(lock_path)
 
 
@@ -152,7 +155,7 @@ def main(_):
         if not check_lock(results_path=results_path, reward_vector=reward_vector):
             continue
 
-        acquire_lock(results_path=results_path)
+        acquire_lock(results_path=results_path, reward_vector=reward_vector)
 
         print(f"\n\n{results_path}\n")
 
@@ -183,7 +186,7 @@ def main(_):
         if results_path.exists():
             np.save(results_path, np.concatenate((np.load(results_path, allow_pickle=True), results), axis=0))
 
-        release_lock(results_path=results_path)
+        release_lock(results_path=results_path, reward_vector=reward_vector)
 
 
 if __name__ == '__main__':
