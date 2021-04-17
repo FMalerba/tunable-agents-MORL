@@ -3,8 +3,10 @@ from absl import flags
 from absl import logging
 
 import gin
+import itertools
 import numpy as np
 import os
+from pathlib import Path
 from tqdm import tqdm
 
 from tf_agents.environments import py_environment
@@ -26,6 +28,9 @@ MODELS = ["64_64_model", "128_128_64_model", "256_128_128_64_64_model", "512_256
 TRAINING_IDS = ["replication" + train_id for train_id in ["", "-1", "-2", "-3", "-4", "-5"]]
 
 SAMPLINGS = ["", "dense_", "continuous_"]
+UTILITY_EPISODES = 100_000
+REWARD_VECTOR_EPISODES = 400_000
+LOCKS_PATH = Path("locks")
 
 
 @gin.configurable
@@ -33,11 +38,69 @@ def train_eval(training_id: str, model_id: str, env_id: str):
     pass
 
 
+def generate_results_path(results_dir: Path, env: str, model: str, training_id: str, lin_thresh: str,
+                          reward_vector: str, sampling: str) -> Path:
+    experiment_id = "-".join([model, env, training_id])
+    results_file_name = experiment_id + ".npy"
+    if lin_thresh:
+        results_file_name = results_file_name.split("-")
+        results_file_name[1] += "_linear"
+        results_file_name = "-".join(results_file_name)
+    if sampling:
+        results_file_name = results_file_name.split("-")
+        results_file_name[1] = sampling + results_file_name[1]
+        results_file_name = "-".join(results_file_name)
+
+    if not results_dir.exists():
+        results_dir.mkdir(parents=True)
+
+    aggregation_dir = results_dir.joinpath("reward_vector" if reward_vector else "utility_results",
+                                           "-".join(results_file_name.split("-")[:2]))
+    results_path = aggregation_dir.joinpath(results_file_name)
+
+    return results_path
+
+
+def check_lock(results_path: Path, reward_vector: bool) -> bool:
+    """
+    Checks if the evaluation run defined by the parameters passed needs to be executed, and if so
+    checks that there isn't a lock already on it.
+
+    Returns:
+        bool: Whether to execute the evaluation run or not.
+    """
+    if results_path.exists():
+        sampled_size = np.load(results_path, allow_pickle=True).shape[0]
+        lock_path = LOCKS_PATH.joinpath(results_path.name)
+        if (sampled_size >= (REWARD_VECTOR_EPISODES if reward_vector else UTILITY_EPISODES) or
+                lock_path.exists()):
+            return False
+
+    return True
+
+
+def acquire_lock(results_path: Path) -> None:
+    """
+    Adds a lock on the current evaluation run.
+    """
+    if not LOCKS_PATH.exists():
+        LOCKS_PATH.mkdir()
+    lock_path = LOCKS_PATH.joinpath(results_path.name)
+    np.save(lock_path, None)
+
+
+def release_lock(results_path: Path) -> None:
+    """
+    Releases the lock on the current evaluation run.
+    """
+    lock_path = LOCKS_PATH.joinpath(results_path.name)
+    os.remove(lock_path)
+
+
 def eval_agent(env: py_environment.PyEnvironment,
                tf_agent: agent.DQNAgent,
                n_episodes: int,
                reward_vector: bool = False) -> np.ndarray:
-
     results = []
     for _ in tqdm(range(n_episodes)):
         ts = env.reset()
@@ -69,74 +132,58 @@ def eval_agent(env: py_environment.PyEnvironment,
 def main(_):
     logging.set_verbosity(logging.INFO)
 
-    for env_type in ENVS:
-        for model in MODELS:
-            for training_id in TRAINING_IDS:
-                for lin_thresh in [True, False]:
-                    for reward_vector in [True, False]:
-                        for sampling in SAMPLINGS:
-                            if lin_thresh and not "threshold" in env_type:
-                                # Can't evaluate a non threshold agent on threshold utilities.
-                                continue
-                            if sampling and "target" in env_type:
-                                # Can't select sampling for target utility function.
-                                continue
+    for env_type, model, training_id, lin_thresh, reward_vector, sampling in itertools.product(
+            ENVS, MODELS, TRAINING_IDS, [True, False], [True, False], SAMPLINGS):
+        if lin_thresh and not "threshold" in env_type:
+            continue  # Can't evaluate a non threshold agent on threshold utilities.
+        if sampling and "target" in env_type:
+            continue  # Can't select sampling for target utility function.
 
-                            experiment_dir = os.path.join(FLAGS.root_dir,
-                                                          "-".join([model, env_type, training_id]))
-                            model_dir = os.path.join(experiment_dir, 'model')
-                            model_path = os.path.join(model_dir, 'dqn_model.h5')
+        experiment_dir = os.path.join(FLAGS.root_dir, "-".join([model, env_type, training_id]))
+        model_path = os.path.join(experiment_dir, 'model', 'dqn_model.h5')
+        results_path = generate_results_path(FLAGS.results_dir,
+                                             env=env_type,
+                                             model=model,
+                                             training_id=training_id,
+                                             lin_thresh=lin_thresh,
+                                             reward_vector=reward_vector,
+                                             sampling=sampling)
 
-                            results_dir = os.path.join(
-                                FLAGS.results_dir, "reward_vector" if reward_vector else "utility_results")
-                            if not os.path.exists(results_dir):
-                                os.makedirs(results_dir)
+        if not check_lock(results_path=results_path, reward_vector=reward_vector):
+            continue
 
-                            results_file_name = experiment_dir.split("/")[-1] + ".npy"
-                            if lin_thresh:
-                                results_file_name = results_file_name.split("-")
-                                results_file_name[1] += "_linear"
-                                results_file_name = "-".join(results_file_name)
-                            if sampling:
-                                results_file_name = results_file_name.split("-")
-                                results_file_name[1] = sampling + results_file_name[1]
-                                results_file_name = "-".join(results_file_name)
+        acquire_lock(results_path=results_path)
 
-                            results_path = os.path.join(results_dir, results_file_name)
+        print(f"\n\n{results_path}\n")
 
-                            aggregation_dir = os.path.join(results_dir,
-                                                           "-".join(results_file_name.split("-")[:2]))
-                            if (not os.path.exists(results_path)) and (not os.path.isdir(aggregation_dir)):
-                                print(f"\n\n{results_path}\n")
-                                np.save(results_path, None)  # Serves as a lock for parallel execution
+        # Loading appropriate gin configs for the environment and this experiment
+        gin.clear_config()
+        qnet_gin, env_gin = experiment_dir.split("/")[-1].split("-")[:2]
+        gin_config_path = Path("tunable-agents-MORL/configs/")
+        gin_files = [
+            gin_config_path.joinpath("qnets/", qnet_gin + ".gin"),
+            gin_config_path.joinpath("envs/", ENV_DICT[env_gin])
+        ]
+        gin_bindings = ["GatheringWrapper.utility_type='linear_threshold'"] if lin_thresh else []
+        utility.load_gin_configs(gin_files, gin_bindings)
+        utility_type = ((sampling if sampling else "") + gin.query_parameter("GatheringWrapper.utility_type"))
 
-                                # Loading appropriate gin configs for the environment and this experiment
-                                gin.clear_config()
-                                qnet_gin, env_gin = experiment_dir.split("/")[-1].split("-")[:2]
-                                gin_config_path = "tunable-agents-MORL/configs/"
-                                gin_files = [
-                                    gin_config_path + "qnets/" + qnet_gin + ".gin",
-                                    gin_config_path + "envs/" + ENV_DICT[env_gin]
-                                ]
-                                gin_bindings = ["GatheringWrapper.utility_type='linear_threshold'"
-                                               ] if lin_thresh else []
-                                utility.load_gin_configs(gin_files, gin_bindings)
-                                utility_type = ((sampling if sampling else "") +
-                                                gin.query_parameter("GatheringWrapper.utility_type"))
+        # Loading trained agent model
+        env = utility.create_environment(utility_type=utility_type)
+        tf_agent = agent.DQNAgent(epsilon=0, obs_spec=env.observation_spec())
+        tf_agent.load_model(model_path)
 
-                                # Loading trained agent model
-                                env = utility.create_environment(utility_type=utility_type)
-                                tf_agent = agent.DQNAgent(epsilon=0, obs_spec=env.observation_spec())
-                                tf_agent.load_model(model_path)
+        # Evaluating the agent
+        n_episodes = REWARD_VECTOR_EPISODES if reward_vector else UTILITY_EPISODES
+        if results_path.exists():
+            n_episodes -= np.load(results_path, allow_pickle=True).shape[0]
+        results = eval_agent(env, tf_agent, n_episodes, reward_vector)
 
-                                # Evaluating the agent
-                                results = eval_agent(env,
-                                                     tf_agent,
-                                                     200_000 if reward_vector else 40_000,
-                                                     reward_vector=reward_vector)
+        # Save results
+        if results_path.exists():
+            np.save(results_path, np.concatenate((np.load(results_path, allow_pickle=True), results), axis=0))
 
-                                # Save results
-                                np.save(results_path, results)
+        release_lock(results_path=results_path)
 
 
 if __name__ == '__main__':
