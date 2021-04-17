@@ -14,15 +14,32 @@ from typing import Dict, List, Tuple
 
 # LISTS THAT ARE USED FOR CONSISTENT SORTING OF ENVIRONMENTS AND MODELS
 ENVS = [
-    "replication_env", "dense_replication_env", "target_env", "threshold_env", "dense_threshold_env",
-    "threshold_env_linear", "dense_threshold_env_linear", "cum_rewards_env", "dense_cum_rewards_env",
-    "cum_target_env", "cum_threshold_env", "dense_cum_threshold_env", "cum_threshold_env_linear",
-    "dense_cum_threshold_env_linear"
+    "Linear", "Cumulative Rewards Linear", "Dense Linear", "Cumulative Rewards Dense Linear", "Target",
+    "Cumulative Rewards Target", "Threshold", "Cumulative Rewards Threshold", "Dense Threshold",
+    "Cumulative Rewards Dense Threshold", "Linear as Threshold", "Cumulative Rewards Linear as Threshold",
+    "Dense Linear as Threshold", "Cumulative Rewards Dense Linear as Threshold"
 ]
 MODELS = [
     "64_64_model", "less_utils_64_64_model", "128_128_64_model", "less_utils_128_128_64_model",
     "256_128_128_64_64_model", "less_utils_256_128_128_64_64_model", "512_256_256_128_128_64_model"
 ]
+
+ENV_DICT = {
+    "replication_env": "Linear",
+    "dense_replication_env": "Dense Linear",
+    "target_env": "Target",
+    "threshold_env": "Threshold",
+    "dense_threshold_env": "Dense Threshold",
+    "threshold_env_linear": "Linear as Threshold",
+    "dense_threshold_env_linear": "Dense Linear as Threshold",
+    "cum_rewards_env": "Cumulative Rewards Linear",
+    "dense_cum_rewards_env": "Cumulative Rewards Dense Linear",
+    "cum_target_env": "Cumulative Rewards Target",
+    "cum_threshold_env": "Cumulative Rewards Threshold",
+    "dense_cum_threshold_env": "Cumulative Rewards Dense Threshold",
+    "cum_threshold_env_linear": "Cumulative Rewards Linear as Threshold",
+    "dense_cum_threshold_env_linear": "Cumulative Rewards Dense Linear as Threshold"
+}
 
 
 def load_results(path: str) -> Dict[str, np.ndarray]:
@@ -34,7 +51,9 @@ def load_results(path: str) -> Dict[str, np.ndarray]:
 
     results = dict()
     for key in keys:
-        new_key = "-".join(key.split("-")[::-1])
+        key_split = key.split("-")[::-1]
+        key_split[0] = ENV_DICT[key_split[0]]
+        new_key = "-".join(key_split)
         key_folder = os.path.join(path, key)
         results[new_key] = [
             np.load(os.path.join(key_folder, file), allow_pickle=True) for file in os.listdir(key_folder)
@@ -73,8 +92,8 @@ def domination_metric(u: np.ndarray, v: np.ndarray) -> float:
 
 def wds_tables(results: Dict[str, List[np.ndarray]]) -> Tuple[pd.DataFrame]:
     keys = sorted(results.keys(), key=sorting)
-    intra_wds = pd.DataFrame(columns=["Environment", "Model", "WD"])
-    inter_wds = pd.DataFrame(columns=["Environment", "Models", "WD"])
+    intra_wds = pd.DataFrame(columns=["Setting", "Model", "WD"])
+    inter_wds = pd.DataFrame(columns=["Setting", "Models", "WD"])
 
     for key in keys:
         env, model = key.split("-")
@@ -86,7 +105,7 @@ def wds_tables(results: Dict[str, List[np.ndarray]]) -> Tuple[pd.DataFrame]:
         mean_wd = np.round(np.mean(wds), 2)
         std_err = np.round(np.std(wds) / np.sqrt(len(wds)), 2)
         val = f"{mean_wd} (+-{std_err})"
-        intra_wds = intra_wds.append({"Environment": env, "Model": model, "WD": val}, ignore_index=True)
+        intra_wds = intra_wds.append({"Setting": env, "Model": model, "WD": val}, ignore_index=True)
 
     for i in range(len(keys)):
         for j in range(i + 1, len(keys)):
@@ -104,22 +123,22 @@ def wds_tables(results: Dict[str, List[np.ndarray]]) -> Tuple[pd.DataFrame]:
                 val = f"{mean_wd} (+-{std_err})"
                 inter_wds = inter_wds.append(
                     {
-                        "Environment": env,
+                        "Setting": env,
                         "Models": "-".join([model_1, model_2]),
                         "WD": val
                     },
                     ignore_index=True)
 
-    intra_wds['Environment'] = pd.Categorical(intra_wds["Environment"], ENVS)
+    intra_wds['Setting'] = pd.Categorical(intra_wds["Setting"], ENVS)
     intra_wds['Model'] = pd.Categorical(intra_wds["Model"], MODELS)
-    inter_wds['Environment'] = pd.Categorical(inter_wds["Environment"], ENVS)
+    inter_wds['Setting'] = pd.Categorical(inter_wds["Setting"], ENVS)
 
     return intra_wds, inter_wds
 
 
 def utilities_table(results: Dict[str, List[np.ndarray]]) -> pd.DataFrame:
     keys = sorted(results.keys(), key=sorting)
-    df = pd.DataFrame(columns=["Environment", "Model", "Utility"])
+    df = pd.DataFrame(columns=["Setting", "Model", "Utility"])
 
     for key in keys:
         if "less_utils" in key:
@@ -129,9 +148,9 @@ def utilities_table(results: Dict[str, List[np.ndarray]]) -> pd.DataFrame:
         mean_util = np.round(np.mean(res), 2)
         std_err = np.round(np.std(res) / np.sqrt(len(res)), 2)
         val = f"{mean_util} (+-{std_err})"
-        df = df.append({"Environment": env, "Model": model, "Utility": val}, ignore_index=True)
+        df = df.append({"Setting": env, "Model": model, "Utility": val}, ignore_index=True)
 
-    df['Environment'] = pd.Categorical(df["Environment"], ENVS)
+    df['Setting'] = pd.Categorical(df["Setting"], ENVS)
     df['Model'] = pd.Categorical(df["Model"], MODELS)
 
     return df
@@ -139,7 +158,7 @@ def utilities_table(results: Dict[str, List[np.ndarray]]) -> pd.DataFrame:
 
 def fixed_env_table(results: Dict[str, List[np.ndarray]]) -> pd.DataFrame:
     keys = sorted(results.keys(), key=sorting)
-    df = pd.DataFrame(columns=["Environment", "Model", "Uniques"])
+    df = pd.DataFrame(columns=["Setting", "Model", "Uniques"])
 
     for key in keys:
         if "less_utils" in key:
@@ -151,13 +170,13 @@ def fixed_env_table(results: Dict[str, List[np.ndarray]]) -> pd.DataFrame:
         std_err = np.round(np.std(uniques) / np.sqrt(len(uniques)), 2)
 
         df = df.append({
-            "Environment": env,
+            "Setting": env,
             "Model": model,
             "Uniques": f"{mean_val} (+-{std_err})"
         },
                        ignore_index=True)
 
-    df['Environment'] = pd.Categorical(df["Environment"], ENVS)
+    df['Setting'] = pd.Categorical(df["Setting"], ENVS)
     df['Model'] = pd.Categorical(df["Model"], MODELS)
 
     return df
@@ -165,7 +184,7 @@ def fixed_env_table(results: Dict[str, List[np.ndarray]]) -> pd.DataFrame:
 
 def non_dominated_table(results: Dict[str, List[np.ndarray]]) -> pd.DataFrame:
     keys = sorted(results.keys(), key=sorting)
-    df = pd.DataFrame(columns=["Environment", "Model", "Non-Dominated"])
+    df = pd.DataFrame(columns=["Setting", "Model", "Non-Dominated"])
 
     for key in keys:
         if "less_utils" in key:
@@ -192,13 +211,13 @@ def non_dominated_table(results: Dict[str, List[np.ndarray]]) -> pd.DataFrame:
         mean_val = np.round(np.mean(non_dominated), 1)
         std_err = np.round(np.std(non_dominated) / np.sqrt(len(non_dominated)), 2)
         df = df.append({
-            "Environment": env,
+            "Setting": env,
             "Model": model,
             "Non-Dominated": f"{mean_val} (+-{std_err})"
         },
                        ignore_index=True)
 
-    df['Environment'] = pd.Categorical(df["Environment"], ENVS)
+    df['Setting'] = pd.Categorical(df["Setting"], ENVS)
     df['Model'] = pd.Categorical(df["Model"], MODELS)
 
     return df
