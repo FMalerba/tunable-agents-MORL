@@ -1,6 +1,7 @@
 from functools import partial
 import gin.tf
-from typing import Callable, List
+from pathlib import Path
+from typing import Callable, List, Union
 
 import tensorflow as tf
 
@@ -10,7 +11,7 @@ from tunable_agents.environments.gathering_env import gathering_env
 from tunable_agents import external_configurables  # Don't remove, it's necessary to configure TF Layers
 #pylint: disable=no-value-for-parameter
 
-def load_gin_configs(gin_files: List[str], gin_bindings: List[str]):
+def load_gin_configs(gin_files: List[Union[str, Path]], gin_bindings: List[str]):
     """Loads gin configuration files.
 
     Args:
@@ -20,13 +21,13 @@ def load_gin_configs(gin_files: List[str], gin_bindings: List[str]):
         config files.
     """
     try:
-        path_folders = gin_files[0].split('/')
+        path_folders = Path(gin_files[0]).parts
         configs_folder_index = path_folders.index('configs')
     except:
         raise ValueError("Expected gin_files paths to be like {}, instead got {}".format(
-            '.../configs/...', gin_files[0]))
+            '*/configs/*', gin_files[0]))
 
-    configs_folder_path = '/'.join(path_folders[:configs_folder_index + 1])
+    configs_folder_path = Path(path_folders[0]).joinpath(path_folders[1:configs_folder_index + 1])
     gin.add_config_file_search_path(configs_folder_path)
     gin.parse_config_files_and_bindings(gin_files, bindings=gin_bindings, skip_unknown=False)
 
