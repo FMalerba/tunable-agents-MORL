@@ -61,7 +61,7 @@ def utility_list(utility_type: str):
             for thresh1 in range(3)
             for thresh2 in range(3)
             for thresh3 in range(3)
-            for r0 in np.arange(-20, 21, step=6) 
+            for r0 in np.arange(-20, 21, step=6)
             for r1 in np.arange(-20, 21, step=6)
             for r2 in np.arange(-20, 21, step=6)
             for r3 in np.arange(-20, 21, step=6)
@@ -69,8 +69,7 @@ def utility_list(utility_type: str):
         ]
     elif utility_type == "target":
         return [
-            TargetUtility(target=np.array(
-                [31, 31, target0, target1, target2, target3], dtype=np.float32))
+            TargetUtility(target=np.array([31, 31, target0, target1, target2, target3], dtype=np.float32))
             for target0 in range(4)
             for target1 in range(4)
             for target2 in range(3)
@@ -80,8 +79,7 @@ def utility_list(utility_type: str):
     raise ValueError("Got unexpected utility_type argument.")
 
 
-def fixed_env_eval(env_kwargs: dict, tf_agent: agent.DQNAgent,
-                   utilities: List[UtilityFunction]) -> np.ndarray:
+def fixed_env_eval(tf_agent: agent.DQNAgent, utilities: List[UtilityFunction], **env_kwargs) -> np.ndarray:
     results = []
     for utility in tqdm(utilities):
         env = GatheringWrapper(utility_repr=utility.utility_repr, **env_kwargs)
@@ -129,12 +127,12 @@ def main(_):
         run_id = 0
     else:
         run_id = max([int(file[:-4]) for file in os.listdir(results_dir)]) + 1
-        results_filepath = os.path.join(results_dir, str(run_id)+".npy")
-    np.save(results_filepath, None)     # To mark that this run is in execution to other processes
+        results_filepath = os.path.join(results_dir, str(run_id) + ".npy")
+    np.save(results_filepath, None)  # To mark that this run is in execution to other processes
     run_utilities = np.array_split(utilities, 10)[run_id].tolist()
 
     # Evaluating the agent on the fixed environment
-    results = fixed_env_eval(env_kwargs, tf_agent, run_utilities)
+    results = fixed_env_eval(tf_agent, run_utilities, **env_kwargs)
 
     # Save results
     np.save(results_filepath, results)
