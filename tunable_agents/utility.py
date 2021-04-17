@@ -27,7 +27,7 @@ def load_gin_configs(gin_files: List[Union[str, Path]], gin_bindings: List[str])
         raise ValueError("Expected gin_files paths to be like {}, instead got {}".format(
             '*/configs/*', gin_files[0]))
 
-    configs_folder_path = Path(path_folders[0]).joinpath(path_folders[1:configs_folder_index + 1])
+    configs_folder_path = Path(path_folders[0]).joinpath(*path_folders[1:configs_folder_index + 1])
     gin.add_config_file_search_path(configs_folder_path)
     gin.parse_config_files_and_bindings(gin_files, bindings=gin_bindings, skip_unknown=False)
 
