@@ -38,8 +38,8 @@ def train_eval(training_id: str, model_id: str, env_id: str):
     pass
 
 
-def generate_results_path(results_dir: Path, env: str, model: str, training_id: str, lin_thresh: str,
-                          reward_vector: str, sampling: str) -> Path:
+def generate_results_path(results_dir: Path, env: str, model: str, training_id: str, lin_thresh: bool,
+                          reward_vector: bool, sampling: str) -> Path:
     experiment_id = "-".join([model, env, training_id])
     results_file_name = experiment_id + ".npy"
     if lin_thresh:

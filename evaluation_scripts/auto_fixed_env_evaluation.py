@@ -52,9 +52,14 @@ def train_eval(training_id: str, model_id: str, env_id: str):
     pass
 
 
-def generate_results_path(results_dir: Path, env: str, model: str, training_id: str) -> Path:
+def generate_results_path(results_dir: Path, env: str, model: str, training_id: str, lin_thresh: bool) -> Path:
     experiment_id = "-".join([model, env, training_id])
     results_file_name = experiment_id + ".npy"
+    
+    if lin_thresh:
+        results_file_name = results_file_name.split("-")
+        results_file_name[1] += "_linear"
+        results_file_name = "-".join(results_file_name)
 
     if not results_dir.exists():
         results_dir.mkdir(parents=True)
@@ -175,7 +180,8 @@ def main(_):
         results_path = generate_results_path(Path(FLAGS.results_dir),
                                              env=env_type,
                                              model=model,
-                                             training_id=training_id)
+                                             training_id=training_id,
+                                             lin_thresh=lin_thresh)
 
         if not check_lock(results_path=results_path):
             continue
