@@ -14,10 +14,13 @@ from typing import Dict, List, Tuple
 
 # LISTS THAT ARE USED FOR CONSISTENT SORTING OF ENVIRONMENTS AND MODELS
 ENVS = [
-    "Linear", "Cumulative Rewards Linear", "Dense Linear", "Cumulative Rewards Dense Linear", "Target",
-    "Cumulative Rewards Target", "Threshold", "Cumulative Rewards Threshold", "Dense Threshold",
-    "Cumulative Rewards Dense Threshold", "Linear as Threshold", "Cumulative Rewards Linear as Threshold",
-    "Dense Linear as Threshold", "Cumulative Rewards Dense Linear as Threshold"
+    "Linear", "Cumulative Rewards Linear", "Dense Linear", "Cumulative Rewards Dense Linear",
+    "Continuous Linear", "Cumulative Rewards Continuous Linear", "Target", "Cumulative Rewards Target",
+    "Threshold", "Cumulative Rewards Threshold", "Dense Threshold", "Cumulative Rewards Dense Threshold",
+    "Continuous Threshold", "Cumulative Rewards Continuous Threshold", "Linear as Threshold",
+    "Cumulative Rewards Linear as Threshold", "Dense Linear as Threshold",
+    "Cumulative Rewards Dense Linear as Threshold", "Continuous Linear as Threshold",
+    "Cumulative Rewards Continuous Linear as Threshold"
 ]
 MODELS = [
     "64_64_model", "less_utils_64_64_model", "128_128_64_model", "less_utils_128_128_64_model",
@@ -27,18 +30,24 @@ MODELS = [
 ENV_DICT = {
     "replication_env": "Linear",
     "dense_replication_env": "Dense Linear",
+    "continuous_replication_env": "Continuous Linear",
     "target_env": "Target",
     "threshold_env": "Threshold",
     "dense_threshold_env": "Dense Threshold",
+    "continuous_threshold_env": "Continuous Threshold",
     "threshold_env_linear": "Linear as Threshold",
     "dense_threshold_env_linear": "Dense Linear as Threshold",
+    "continuous_threshold_env_linear": "Continuous Linear as Threshold",
     "cum_rewards_env": "Cumulative Rewards Linear",
     "dense_cum_rewards_env": "Cumulative Rewards Dense Linear",
+    "continuous_cum_rewards_env": "Cumulative Rewards Continuous Linear",
     "cum_target_env": "Cumulative Rewards Target",
     "cum_threshold_env": "Cumulative Rewards Threshold",
     "dense_cum_threshold_env": "Cumulative Rewards Dense Threshold",
+    "continuous_cum_threshold_env": "Cumulative Rewards Continuous Threshold",
     "cum_threshold_env_linear": "Cumulative Rewards Linear as Threshold",
-    "dense_cum_threshold_env_linear": "Cumulative Rewards Dense Linear as Threshold"
+    "dense_cum_threshold_env_linear": "Cumulative Rewards Dense Linear as Threshold",
+    "continuous_cum_threshold_env_linear": "Cumulative Rewards Continuous Linear as Threshold"
 }
 
 
@@ -57,6 +66,28 @@ def load_results(path: str) -> Dict[str, np.ndarray]:
         key_folder = os.path.join(path, key)
         results[new_key] = [
             np.load(os.path.join(key_folder, file), allow_pickle=True) for file in os.listdir(key_folder)
+        ]
+
+    return results
+
+
+def load_reward_vector_results(path: str) -> Dict[str, np.ndarray]:
+    keys = set()
+    for file in os.listdir(path):
+        file_path = os.path.join(path, file)
+        if os.path.isdir(file_path) and len(os.listdir(file_path)) == 6:
+            keys.add(file)
+
+    results = dict()
+    for key in keys:
+        key_split = key.split("-")[::-1]
+        key_split[0] = ENV_DICT[key_split[0]]
+        new_key = "-".join(key_split)
+        key_folder = os.path.join(path, key)
+        results[new_key] = [
+            np.array(
+                [cum_rew for cum_rew in np.load(os.path.join(key_folder, file), allow_pickle=True)[:, 1]],
+                dtype=np.float32) for file in os.listdir(key_folder)
         ]
 
     return results
@@ -126,8 +157,7 @@ def wds_tables(results: Dict[str, List[np.ndarray]]) -> Tuple[pd.DataFrame]:
                         "Setting": env,
                         "Models": "-".join([model_1, model_2]),
                         "WD": val
-                    },
-                    ignore_index=True)
+                    }, ignore_index=True)
 
     intra_wds['Setting'] = pd.Categorical(intra_wds["Setting"], ENVS)
     intra_wds['Model'] = pd.Categorical(intra_wds["Model"], MODELS)
@@ -141,8 +171,6 @@ def utilities_table(results: Dict[str, List[np.ndarray]]) -> pd.DataFrame:
     df = pd.DataFrame(columns=["Setting", "Model", "Utility"])
 
     for key in keys:
-        if "less_utils" in key:
-            continue
         env, model = key.split("-")
         res = [np.mean(result) for result in results[key]]
         mean_util = np.round(np.mean(res), 2)
@@ -156,13 +184,11 @@ def utilities_table(results: Dict[str, List[np.ndarray]]) -> pd.DataFrame:
     return df
 
 
-def fixed_env_table(results: Dict[str, List[np.ndarray]]) -> pd.DataFrame:
+def uniques_table(results: Dict[str, List[np.ndarray]]) -> pd.DataFrame:
     keys = sorted(results.keys(), key=sorting)
     df = pd.DataFrame(columns=["Setting", "Model", "Uniques"])
 
     for key in keys:
-        if "less_utils" in key:
-            continue
         env, model = key.split("-")
 
         uniques = [np.unique(result, axis=0).shape[0] for result in results[key]]
@@ -187,8 +213,6 @@ def non_dominated_table(results: Dict[str, List[np.ndarray]]) -> pd.DataFrame:
     df = pd.DataFrame(columns=["Setting", "Model", "Non-Dominated"])
 
     for key in keys:
-        if "less_utils" in key:
-            continue
         env, model = key.split("-")
 
         # Cumulative reward vectors are transformed to represent the fact that the first two entries
