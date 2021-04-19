@@ -74,7 +74,7 @@ def check_lock(results_path: Path, reward_vector: bool) -> bool:
         if sampled_size >= (REWARD_VECTOR_EPISODES if reward_vector else UTILITY_EPISODES):
             return False
     
-    lock_name = results_path.name[:-4] + ("reward_vector" * reward_vector) + ".npy"
+    lock_name = results_path.name[:-4] + ("-reward_vector" * reward_vector) + ".npy"
     lock_path = LOCKS_PATH.joinpath(lock_name)
     if lock_path.exists():
         return False
@@ -88,7 +88,7 @@ def acquire_lock(results_path: Path, reward_vector: bool) -> None:
     """
     if not LOCKS_PATH.exists():
         LOCKS_PATH.mkdir()
-    lock_name = results_path.name[:-4] + ("reward_vector" * reward_vector) + ".npy"
+    lock_name = results_path.name[:-4] + ("-reward_vector" * reward_vector) + ".npy"
     lock_path = LOCKS_PATH.joinpath(lock_name)
     np.save(lock_path, None)
 
@@ -97,7 +97,7 @@ def release_lock(results_path: Path, reward_vector: bool) -> None:
     """
     Releases the lock on the current evaluation run.
     """
-    lock_name = results_path.name[:-4] + ("reward_vector" * reward_vector) + ".npy"
+    lock_name = results_path.name[:-4] + ("-reward_vector" * reward_vector) + ".npy"
     lock_path = LOCKS_PATH.joinpath(lock_name)
     os.remove(lock_path)
 

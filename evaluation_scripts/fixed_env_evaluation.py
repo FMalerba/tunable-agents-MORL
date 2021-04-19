@@ -114,7 +114,7 @@ def main(_):
 
     # Loading trained agent model
     env_kwargs = ENV_KWARGS[env_gin]
-    env = GatheringWrapper(**env_kwargs)
+    env = utility.create_environment(**env_kwargs)
     tf_agent = agent.DQNAgent(epsilon=0, obs_spec=env.observation_spec())
     tf_agent.load_model(model_path)
 
