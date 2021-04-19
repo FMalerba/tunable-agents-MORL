@@ -279,7 +279,7 @@ def train_eval(training_id: str, model_id: str, env_id: str):
 
 
 # Some predefined selections of setting to be used in the jupyter notebooks
-ALL_SETTINGS = [
+ALL_SETTINGS = {
     'Continuous Linear', 'Continuous Linear as Threshold', 'Continuous Threshold',
     'Cumulative Rewards Continuous Linear', 'Cumulative Rewards Continuous Linear as Threshold',
     'Cumulative Rewards Continuous Threshold', 'Cumulative Rewards Dense Linear',
@@ -287,58 +287,56 @@ ALL_SETTINGS = [
     'Cumulative Rewards Linear', 'Cumulative Rewards Linear as Threshold', 'Cumulative Rewards Target',
     'Cumulative Rewards Threshold', 'Dense Linear'
     'Dense Linear as Threshold', 'Dense Threshold', 'Linear', 'Linear as Threshold', 'Target', 'Threshold'
-]
+}
 
-CUMULATIVE_SETTINGS = [
+CUMULATIVE_SETTINGS = {
     'Cumulative Rewards Continuous Linear', 'Cumulative Rewards Continuous Linear as Threshold',
     'Cumulative Rewards Continuous Threshold', 'Cumulative Rewards Dense Linear',
     'Cumulative Rewards Dense Linear as Threshold', 'Cumulative Rewards Dense Threshold',
     'Cumulative Rewards Linear', 'Cumulative Rewards Linear as Threshold', 'Cumulative Rewards Target',
     'Cumulative Rewards Threshold'
-]
+}
 
-LINEAR_SETTINGS = [
+LINEAR_SETTINGS = {
     'Continuous Linear', 'Cumulative Rewards Continuous Linear', 'Cumulative Rewards Dense Linear',
     'Cumulative Rewards Linear', 'Dense Linear', 'Linear'
-]
+}
 
-THRESHOLD_SETTINGS = [
+THRESHOLD_SETTINGS = {
     'Continuous Linear as Threshold', 'Continuous Threshold',
     'Cumulative Rewards Continuous Linear as Threshold', 'Cumulative Rewards Continuous Threshold',
     'Cumulative Rewards Dense Linear as Threshold', 'Cumulative Rewards Dense Threshold',
     'Cumulative Rewards Linear as Threshold', 'Cumulative Rewards Threshold', 'Dense Linear as Threshold',
     'Dense Threshold', 'Linear as Threshold', 'Threshold'
-]
+}
 
-TARGET_SETTINGS = ['Cumulative Rewards Target', 'Target']
+TARGET_SETTINGS = {'Cumulative Rewards Target', 'Target'}
 
-LINEAR_AS_THRESHOLD_SETTINGS = [
+LINEAR_AS_THRESHOLD_SETTINGS = {
     'Continuous Linear as Threshold',
     'Cumulative Rewards Continuous Linear as Threshold',
     'Cumulative Rewards Dense Linear as Threshold',
     'Cumulative Rewards Linear as Threshold',
     'Dense Linear as Threshold',
     'Linear as Threshold',
-]
+}
 
-STANDARD_SAMPLING_SETTINGS = [
+STANDARD_SAMPLING_SETTINGS = {
     'Cumulative Rewards Linear', 'Cumulative Rewards Linear as Threshold', 'Cumulative Rewards Target',
     'Cumulative Rewards Threshold', 'Linear', 'Linear as Threshold', 'Target', 'Threshold'
-]
+}
 
-DENSE_SAMPLING_SETTINGS = [
+DENSE_SAMPLING_SETTINGS = {
     'Cumulative Rewards Dense Linear',
     'Cumulative Rewards Dense Linear as Threshold',
     'Cumulative Rewards Dense Threshold',
     'Dense Linear'
     'Dense Linear as Threshold',
     'Dense Threshold',
-]
+}
 
-CONTINUOUS_SETTINGS = [
+CONTINUOUS_SETTINGS = {
     'Continuous Linear', 'Continuous Linear as Threshold', 'Continuous Threshold',
     'Cumulative Rewards Continuous Linear', 'Cumulative Rewards Continuous Linear as Threshold',
     'Cumulative Rewards Continuous Threshold'
-]
-
-
+}
