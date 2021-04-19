@@ -92,7 +92,7 @@ def fixed_env_eval(tf_agent: agent.DQNAgent, utilities: List[UtilityFunction], *
             ts = env.step(action)
             observations, done = ts.observation, ts.is_last()
 
-        results.append(env._cumulative_rewards)
+        results.append(np.copy(env._cumulative_rewards))
 
     return results
 
