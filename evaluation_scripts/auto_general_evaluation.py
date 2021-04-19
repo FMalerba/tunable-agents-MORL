@@ -71,11 +71,13 @@ def check_lock(results_path: Path, reward_vector: bool) -> bool:
     """
     if results_path.exists():
         sampled_size = np.load(results_path, allow_pickle=True).shape[0]
-        lock_name = results_path.name[:-4] + ("reward_vector" * reward_vector) + ".npy"
-        lock_path = LOCKS_PATH.joinpath(lock_name)
-        if (sampled_size >= (REWARD_VECTOR_EPISODES if reward_vector else UTILITY_EPISODES) or
-                lock_path.exists()):
+        if sampled_size >= (REWARD_VECTOR_EPISODES if reward_vector else UTILITY_EPISODES):
             return False
+    
+    lock_name = results_path.name[:-4] + ("reward_vector" * reward_vector) + ".npy"
+    lock_path = LOCKS_PATH.joinpath(lock_name)
+    if lock_path.exists():
+        return False
 
     return True
 
