@@ -13,16 +13,19 @@ from tf_agents.environments import py_environment
 from tunable_agents import utility, agent
 
 ENV_DICT = {
+    "cum_linear_threshold": "cumulative_linear_threshold_env.gin",
     "cum_rewards_env": "cumulative_rewards_env.gin",
     "cum_target_env": "cumulative_target_env.gin",
     "cum_threshold_env": "cumulative_threshold_env.gin",
+    "linear_threshold": "linear_threshold_env.gin",
     "replication_env": "replication_env.gin",
     "target_env": "target_env.gin",
     "threshold_env": "threshold_utility_env.gin"
 }
 
 ENVS = [
-    "cum_rewards_env", "cum_target_env", "cum_threshold_env", "replication_env", "target_env", "threshold_env"
+    "cum_linear_threshold", "cum_rewards_env", "cum_target_env", "cum_threshold_env",
+    "linear_threshold", "replication_env", "target_env", "threshold_env"
 ]
 MODELS = ["64_64_model", "128_128_64_model", "256_128_128_64_64_model", "512_256_256_128_128_64_model"]
 TRAINING_IDS = ["replication" + train_id for train_id in ["", "-1", "-2", "-3", "-4", "-5"]]
@@ -169,7 +172,9 @@ def main(_):
             gin_config_path.joinpath("qnets/", qnet_gin + ".gin"),
             gin_config_path.joinpath("envs/", ENV_DICT[env_gin])
         ]
-        gin_bindings = ["GatheringWrapper.utility_type='linear_threshold'"] if lin_thresh else []
+        if lin_thresh: gin_bindings = ["GatheringWrapper.utility_type='linear_threshold'"]
+        elif "linear_threshold" in env_type: gin_bindings = ["GatheringWrapper.utility_type='threshold'"]
+        else: gin_bindings = []
         utility.load_gin_configs(gin_files, gin_bindings)
         utility_type = ((sampling if sampling else "") + gin.query_parameter("GatheringWrapper.utility_type"))
 

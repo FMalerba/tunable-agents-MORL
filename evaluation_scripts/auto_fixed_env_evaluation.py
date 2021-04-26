@@ -36,10 +36,18 @@ ENV_KWARGS = {
     'cum_threshold_env': {
         "utility_type": 'threshold',
         "cumulative_rewards_flag": True
+    },
+    'linear_threshold': {
+        "utility_type": 'linear_threshold'
+    },
+    'cum_linear_threshold': {
+        "utility_type": 'linear_threshold',
+        "cumulative_rewards_flag": True
     }
 }
 ENVS = [
-    "cum_rewards_env", "cum_target_env", "cum_threshold_env", "replication_env", "target_env", "threshold_env"
+    "cum_linear_threshold", "cum_rewards_env", "cum_target_env", "cum_threshold_env",
+    "linear_threshold", "replication_env", "target_env", "threshold_env"
 ]
 MODELS = ["64_64_model", "128_128_64_model", "256_128_128_64_64_model", "512_256_256_128_128_64_model"]
 TRAINING_IDS = ["replication" + train_id for train_id in ["", "-1", "-2", "-3", "-4", "-5"]]
@@ -202,6 +210,7 @@ def main(_):
         # Loading trained agent model
         env_kwargs = ENV_KWARGS[env_gin]
         if lin_thresh: env_kwargs["utility_type"] = "linear_threshold"
+        elif "linear_threshold" in env_type: env_kwargs["utility_type"] = "threshold"
         env = utility.create_environment(**env_kwargs)
         tf_agent = agent.DQNAgent(epsilon=0, obs_spec=env.observation_spec())
         tf_agent.load_model(model_path)
