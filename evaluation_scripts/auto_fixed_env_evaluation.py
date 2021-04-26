@@ -37,17 +37,17 @@ ENV_KWARGS = {
         "utility_type": 'threshold',
         "cumulative_rewards_flag": True
     },
-    'linear_threshold': {
+    'linear_threshold_env': {
         "utility_type": 'linear_threshold'
     },
-    'cum_linear_threshold': {
+    'cum_linear_threshold_env': {
         "utility_type": 'linear_threshold',
         "cumulative_rewards_flag": True
     }
 }
 ENVS = [
-    "cum_linear_threshold", "cum_rewards_env", "cum_target_env", "cum_threshold_env",
-    "linear_threshold", "replication_env", "target_env", "threshold_env"
+    "cum_linear_threshold_env", "cum_rewards_env", "cum_target_env", "cum_threshold_env",
+    "linear_threshold_env", "replication_env", "target_env", "threshold_env"
 ]
 MODELS = ["64_64_model", "128_128_64_model", "256_128_128_64_64_model", "512_256_256_128_128_64_model"]
 TRAINING_IDS = ["replication" + train_id for train_id in ["", "-1", "-2", "-3", "-4", "-5"]]
