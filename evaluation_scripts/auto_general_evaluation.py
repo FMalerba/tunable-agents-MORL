@@ -45,13 +45,13 @@ def generate_results_path(results_dir: Path, env: str, model: str, training_id: 
                           reward_vector: bool, sampling: str) -> Path:
     experiment_id = "-".join([model, env, training_id])
     results_file_name = experiment_id + ".npy"
-    if lin_thresh:
-        results_file_name = results_file_name.split("-")
-        results_file_name[1] += "_linear"
-        results_file_name = "-".join(results_file_name)
     if sampling:
         results_file_name = results_file_name.split("-")
         results_file_name[1] = results_file_name[1][:-4] + "_" + sampling + "_env"
+        results_file_name = "-".join(results_file_name)
+    if lin_thresh:
+        results_file_name = results_file_name.split("-")
+        results_file_name[1] += results_file_name[1][:-4] + "_linear_env"
         results_file_name = "-".join(results_file_name)
 
     if not results_dir.exists():
