@@ -51,7 +51,7 @@ def generate_results_path(results_dir: Path, env: str, model: str, training_id: 
         results_file_name = "-".join(results_file_name)
     if sampling:
         results_file_name = results_file_name.split("-")
-        results_file_name[1] = sampling + results_file_name[1]
+        results_file_name[1] = results_file_name[1][:-4] + "_" + sampling[:-1] + "_env"
         results_file_name = "-".join(results_file_name)
 
     if not results_dir.exists():
