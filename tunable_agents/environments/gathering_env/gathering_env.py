@@ -10,6 +10,13 @@ from tf_agents.typing import types
 
 import numpy as np
 
+# Before adding new utilities to this list check their behaviour in particular for the 
+# GatheringWrapper._is_done() method
+SUPPORTED_UTILITY_TYPES = ["linear", "dense_linear", "continuous_linear",
+                           "threshold", "dense_threshold", "continuous_threshold",
+                           "linear_threshold", "dense_linear_threshold", "continuous_linear_threshold",
+                           "target"]
+
 
 class ObservationStacker(object):
     """
@@ -84,8 +91,10 @@ class GatheringWrapper(py_environment.PyEnvironment):
                  utility_type: str = 'linear',
                  **gridworld_kwargs) -> None:
         super().__init__()
+        if utility_type not in SUPPORTED_UTILITY_TYPES:
+            raise ValueError(f"{utility_type} is not among the yet supported utility types for the gathering environment")
+        
         # If a utility representation is passed to the environment, then the corresponding utility is fixed and won't be resampled
-
         self._fixed_utility = utility_repr is not None
         self._utility_type = utility_type
         self._utility_func = sample_utility(utility_type, utility_repr)
