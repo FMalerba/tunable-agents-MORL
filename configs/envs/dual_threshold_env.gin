@@ -1,0 +1,5 @@
+include "envs/replication_env.gin"
+
+train_eval.env_id = "dual_threshold_env"           # Used to name the folder for logs/summaries/checkpoints
+
+GatheringWrapper.utility_type = 'dual_threshold'
