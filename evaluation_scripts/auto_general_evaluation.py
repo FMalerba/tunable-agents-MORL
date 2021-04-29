@@ -30,7 +30,7 @@ ENVS = [
 MODELS = ["64_64_model", "128_128_64_model", "256_128_128_64_64_model", "512_256_256_128_128_64_model"]
 TRAINING_IDS = ["replication" + train_id for train_id in ["", "-1", "-2", "-3", "-4", "-5"]]
 
-SAMPLINGS = ["", "dense_", "continuous_"]
+SAMPLINGS = ["", "dense", "continuous"]
 UTILITY_EPISODES = 100_000
 REWARD_VECTOR_EPISODES = 400_000
 LOCKS_PATH = Path("locks")
@@ -51,7 +51,7 @@ def generate_results_path(results_dir: Path, env: str, model: str, training_id: 
         results_file_name = "-".join(results_file_name)
     if sampling:
         results_file_name = results_file_name.split("-")
-        results_file_name[1] = results_file_name[1][:-4] + "_" + sampling[:-1] + "_env"
+        results_file_name[1] = results_file_name[1][:-4] + "_" + sampling + "_env"
         results_file_name = "-".join(results_file_name)
 
     if not results_dir.exists():
@@ -176,10 +176,9 @@ def main(_):
         elif "linear_threshold" in env_type: gin_bindings = ["GatheringWrapper.utility_type='threshold'"]
         else: gin_bindings = []
         utility.load_gin_configs(gin_files, gin_bindings)
-        utility_type = ((sampling if sampling else "") + gin.query_parameter("GatheringWrapper.utility_type"))
 
         # Loading trained agent model
-        env = utility.create_environment(utility_type=utility_type)
+        env = utility.create_environment(sampling=sampling)
         tf_agent = agent.DQNAgent(epsilon=0, obs_spec=env.observation_spec())
         tf_agent.load_model(model_path)
 
