@@ -1,4 +1,4 @@
-include "envs/replication_env.gin"
+include "envs/linear_env.gin"
 
 train_eval.env_id = "dual_threshold_env"           # Used to name the folder for logs/summaries/checkpoints
 
