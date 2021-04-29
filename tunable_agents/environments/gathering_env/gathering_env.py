@@ -12,7 +12,9 @@ import numpy as np
 
 # Before adding new utilities to this list check their behaviour in particular for the
 # GatheringWrapper._is_done() method
-SUPPORTED_UTILITY_TYPES = ["linear", "threshold", "linear_threshold", "target"]
+SUPPORTED_UTILITY_TYPES = [
+    "linear", "threshold", "linear_threshold", "dual_threshold", "linear_dual_threshold", "target"
+]
 
 
 class ObservationStacker(object):
@@ -184,7 +186,7 @@ class GatheringWrapper(py_environment.PyEnvironment):
         if self._env.step_count > self._env.max_steps:
             return True
 
-        if self._utility_type == "target":
+        if self._utility_type in ["target", "dual_threshold"]:
             interests = self._interests - self._cumulative_rewards
         else:
             interests = self._interests
