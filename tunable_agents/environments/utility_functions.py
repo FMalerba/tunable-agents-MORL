@@ -193,7 +193,7 @@ def dense_sample_linear_weights() -> np.ndarray:
     # An environment with a negative preference vector will simply stop the episode after the first step.
     # It is therefore pointless to sample such a vector.
     if np.all(pref <= 0):
-        return sample_linear_weights()
+        return dense_sample_linear_weights()
 
     w01 = np.array([-1, -5], dtype=np.float32)
     return np.concatenate((w01, pref))
@@ -211,7 +211,7 @@ def continuous_sample_linear_weights() -> np.ndarray:
     # An environment with a negative preference vector will simply stop the episode after the first step.
     # It is therefore pointless to sample such a vector.
     if np.all(pref <= 0):
-        return sample_linear_weights()
+        return continuous_sample_linear_weights()
 
     w01 = np.array([-1, -5])
     return np.concatenate((w01, pref)).astype(np.float32)
@@ -255,7 +255,7 @@ def dense_sample_thresholds_and_coefficients() -> np.ndarray:
     # An environment with a negative preference vector will simply stop the episode after the first step.
     # It is therefore pointless to sample such a vector.
     if np.all(coefficients <= 0):
-        return sample_thresholds_and_coefficients()
+        return dense_sample_thresholds_and_coefficients()
 
     w01 = np.array([-1, -5], dtype=np.float32)
     return np.array(
@@ -278,7 +278,7 @@ def continuous_sample_thresholds_and_coefficients() -> np.ndarray:
     # An environment with a negative preference vector will simply stop the episode after the first step.
     # It is therefore pointless to sample such a vector.
     if np.all(coefficients <= 0):
-        return sample_thresholds_and_coefficients()
+        return continuous_sample_thresholds_and_coefficients()
 
     w01 = np.array([-1, -5])
     return np.array(
@@ -302,7 +302,7 @@ def sample_linear_thresholds() -> np.ndarray:
     # An environment with a negative preference vector will simply stop the episode after the first step.
     # It is therefore pointless to sample such a vector.
     if np.all(coefficients <= 0):
-        return sample_thresholds_and_coefficients()
+        return sample_linear_thresholds()
 
     w01 = np.array([-1, -5], dtype=np.float32)
     return np.array([[0, 0, 0, 0, 0, 0], np.concatenate((w01, coefficients))], dtype=np.float32)
@@ -324,7 +324,7 @@ def dense_sample_linear_thresholds() -> np.ndarray:
     # An environment with a negative preference vector will simply stop the episode after the first step.
     # It is therefore pointless to sample such a vector.
     if np.all(coefficients <= 0):
-        return sample_thresholds_and_coefficients()
+        return dense_sample_linear_thresholds()
 
     w01 = np.array([-1, -5], dtype=np.float32)
     return np.array([[0, 0, 0, 0, 0, 0], np.concatenate((w01, coefficients))], dtype=np.float32)
@@ -346,7 +346,7 @@ def continuous_sample_linear_thresholds() -> np.ndarray:
     # An environment with a negative preference vector will simply stop the episode after the first step.
     # It is therefore pointless to sample such a vector.
     if np.all(coefficients <= 0):
-        return sample_thresholds_and_coefficients()
+        return continuous_sample_linear_thresholds()
 
     w01 = np.array([-1, -5], dtype=np.float32)
     return np.array([[0, 0, 0, 0, 0, 0], np.concatenate((w01, coefficients))], dtype=np.float32)
