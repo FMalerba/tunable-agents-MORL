@@ -12,12 +12,7 @@ import numpy as np
 
 # Before adding new utilities to this list check their behaviour in particular for the
 # GatheringWrapper._is_done() method
-SUPPORTED_UTILITY_TYPES = [
-    "linear", "dense_linear", "continuous_linear",
-    "threshold", "dense_threshold", "continuous_threshold",
-    "linear_threshold", "dense_linear_threshold", "continuous_linear_threshold",
-    "target"
-]
+SUPPORTED_UTILITY_TYPES = ["linear", "threshold", "linear_threshold", "target"]
 
 
 class ObservationStacker(object):
