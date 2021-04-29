@@ -99,6 +99,39 @@ class ThresholdUtility(UtilityFunction):
         return np.sum(np.where(rewards >= self._thresholds, rewards * self._coefficients, 0))
 
 
+class DualThresholdUtility(UtilityFunction):
+
+    def __init__(self,
+                 thresholds_and_ceofficients: Optional[np.ndarray] = None,
+                 agent_utility_repr: Optional[np.ndarray] = None) -> None:
+        """
+        Implements and contains all information and possible different representations of a threshold utility function.
+        
+        It is required that either thresholds_and_ceofficients or the agent_utility_repr be provided 
+        in order to reconstruct the others.
+        """
+        if thresholds_and_ceofficients is not None:
+            thresholds = thresholds_and_ceofficients[0]
+            coefficients = thresholds_and_ceofficients[1]
+            agent_utility_repr = (thresholds_and_ceofficients[:, 2:] / [[1], [40]]).flatten()
+        elif agent_utility_repr is not None:
+            thresholds = np.concatenate(([31, 31], agent_utility_repr[:4])).astype(np.float32)
+            coefficients = np.concatenate(([-1, -5], agent_utility_repr[4:] * 40)).astype(np.float32)
+        else:
+            raise ValueError(
+                "Expected to receive at least one utility representation argument, but received none.")
+
+        self._thresholds = thresholds
+        self._coefficients = coefficients
+        interests = (coefficients > 0).astype(int) * thresholds
+        super().__init__(utility_repr=np.array([thresholds, coefficients]),
+                         agent_utility_repr=agent_utility_repr,
+                         interests=interests)
+
+    def call(self, rewards: np.ndarray) -> np.ndarray:
+        return np.sum(np.where(rewards <= self._thresholds, rewards * self._coefficients, self._thresholds*self._coefficients))
+
+
 class TargetUtility(UtilityFunction):
 
     def __init__(self,
