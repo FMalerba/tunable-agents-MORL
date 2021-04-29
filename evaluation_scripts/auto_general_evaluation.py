@@ -14,18 +14,18 @@ from tunable_agents import utility, agent
 
 ENV_DICT = {
     "cum_linear_threshold_env": "cumulative_linear_threshold_env.gin",
-    "cum_rewards_env": "cumulative_rewards_env.gin",
+    "cum_linear_env": "cumulative_linear_env.gin",
     "cum_target_env": "cumulative_target_env.gin",
     "cum_threshold_env": "cumulative_threshold_env.gin",
     "linear_threshold_env": "linear_threshold_env.gin",
-    "replication_env": "replication_env.gin",
+    "linear_env": "linear_env.gin",
     "target_env": "target_env.gin",
     "threshold_env": "threshold_utility_env.gin"
 }
 
 ENVS = [
-    "cum_linear_threshold_env", "cum_rewards_env", "cum_target_env", "cum_threshold_env",
-    "linear_threshold_env", "replication_env", "target_env", "threshold_env"
+    "cum_linear_threshold_env", "cum_linear_env", "cum_target_env", "cum_threshold_env",
+    "linear_threshold_env", "linear_env", "target_env", "threshold_env"
 ]
 MODELS = ["64_64_model", "128_128_64_model", "256_128_128_64_64_model", "512_256_256_128_128_64_model"]
 TRAINING_IDS = ["replication" + train_id for train_id in ["", "-1", "-2", "-3", "-4", "-5"]]

@@ -16,10 +16,10 @@ from tunable_agents.environments.utility_functions import LinearUtility, TargetU
 from typing import List
 
 ENV_KWARGS = {
-    'replication_env': {
+    'linear_env': {
         "utility_type": "linear"
     },
-    'cum_rewards_env': {
+    'cum_linear_env': {
         "utility_type": "linear",
         "cumulative_rewards_flag": True
     },
@@ -46,8 +46,8 @@ ENV_KWARGS = {
     }
 }
 ENVS = [
-    "cum_linear_threshold_env", "cum_rewards_env", "cum_target_env", "cum_threshold_env",
-    "linear_threshold_env", "replication_env", "target_env", "threshold_env"
+    "cum_linear_threshold_env", "cum_linear_env", "cum_target_env", "cum_threshold_env",
+    "linear_threshold_env", "linear_env", "target_env", "threshold_env"
 ]
 MODELS = ["64_64_model", "128_128_64_model", "256_128_128_64_64_model", "512_256_256_128_128_64_model"]
 TRAINING_IDS = ["replication" + train_id for train_id in ["", "-1", "-2", "-3", "-4", "-5"]]
