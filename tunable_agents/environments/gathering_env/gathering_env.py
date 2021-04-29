@@ -1,6 +1,6 @@
 from typing import Tuple
 from gym_mo.envs.gridworlds.mo_gridworld_base import MOGridworld
-from tunable_agents.environments.utility_functions import sample_utility
+from tunable_agents.environments.utility_functions import sample_utility, DEFAULT_SAMPLING
 from tf_agents.environments import py_environment
 from tf_agents.specs import array_spec
 from tf_agents.trajectories import time_step as ts
@@ -10,12 +10,14 @@ from tf_agents.typing import types
 
 import numpy as np
 
-# Before adding new utilities to this list check their behaviour in particular for the 
+# Before adding new utilities to this list check their behaviour in particular for the
 # GatheringWrapper._is_done() method
-SUPPORTED_UTILITY_TYPES = ["linear", "dense_linear", "continuous_linear",
-                           "threshold", "dense_threshold", "continuous_threshold",
-                           "linear_threshold", "dense_linear_threshold", "continuous_linear_threshold",
-                           "target"]
+SUPPORTED_UTILITY_TYPES = [
+    "linear", "dense_linear", "continuous_linear",
+    "threshold", "dense_threshold", "continuous_threshold",
+    "linear_threshold", "dense_linear_threshold", "continuous_linear_threshold",
+    "target"
+]
 
 
 class ObservationStacker(object):
@@ -89,15 +91,20 @@ class GatheringWrapper(py_environment.PyEnvironment):
                  history_size: int = 3,
                  utility_repr: np.ndarray = None,
                  utility_type: str = 'linear',
+                 sampling: str = DEFAULT_SAMPLING,
                  **gridworld_kwargs) -> None:
         super().__init__()
         if utility_type not in SUPPORTED_UTILITY_TYPES:
-            raise ValueError(f"{utility_type} is not among the yet supported utility types for the gathering environment")
-        
+            raise ValueError(
+                f"{utility_type} is not among the yet supported utility types for the gathering environment")
+
         # If a utility representation is passed to the environment, then the corresponding utility is fixed and won't be resampled
         self._fixed_utility = utility_repr is not None
         self._utility_type = utility_type
-        self._utility_func = sample_utility(utility_type, utility_repr)
+        self._sampling = sampling
+        self._utility_func = sample_utility(utility_type=utility_type,
+                                            sampling=sampling,
+                                            utility_repr=utility_repr)
         self._interests = self._utility_func.interests
 
         self._cumulative_rewards_flag = cumulative_rewards_flag
@@ -128,9 +135,9 @@ class GatheringWrapper(py_environment.PyEnvironment):
 
     def _reset(self) -> ts.TimeStep:
         if not self._fixed_utility:
-            self._utility_func = sample_utility(self._utility_type)
+            self._utility_func = sample_utility(utility_type=self._utility_type, sampling=self._sampling)
             self._interests = self._utility_func.interests
-        
+
         state_obs = self._env.reset()
 
         self._cumulative_rewards.fill(0.0)
@@ -177,16 +184,15 @@ class GatheringWrapper(py_environment.PyEnvironment):
             return ts.termination(obs, reward)
         else:
             return ts.transition(obs, reward, self.gamma)
-    
+
     def _is_done(self) -> bool:
         if self._env.step_count > self._env.max_steps:
             return True
-        
+
         if self._utility_type == "target":
             interests = self._interests - self._cumulative_rewards
         else:
             interests = self._interests
-        
 
         for row in range(self._env.grid.shape[0]):
             for column in range(self._env.grid.shape[1]):
