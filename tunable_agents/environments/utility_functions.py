@@ -269,7 +269,7 @@ def sample_dual_thresholds_and_coefficients(sampling: str = DEFAULT_SAMPLING) ->
     # An environment with a negative preference vector will simply stop the episode after the first step.
     # It is therefore pointless to sample such a vector. The same consideration goes for an environment with
     # dual thresholds being all. 0
-    if np.all(coefficients <= 0) or np.all(dual_thresholds == 0):
+    if not np.any((coefficients > 0).astype(int) * dual_thresholds):
         return sample_dual_thresholds_and_coefficients(sampling=sampling)
 
     w01 = np.array([-1, -5], dtype=np.float32)
