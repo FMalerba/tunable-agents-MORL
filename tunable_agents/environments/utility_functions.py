@@ -102,34 +102,37 @@ class ThresholdUtility(UtilityFunction):
 class DualThresholdUtility(UtilityFunction):
 
     def __init__(self,
-                 thresholds_and_ceofficients: Optional[np.ndarray] = None,
+                 dual_thresholds_and_coefficients: Optional[np.ndarray] = None,
                  agent_utility_repr: Optional[np.ndarray] = None) -> None:
         """
-        Implements and contains all information and possible different representations of a threshold utility function.
+        Implements and contains all information and possible different representations of a 
+        dual threshold utility function.
         
-        It is required that either thresholds_and_ceofficients or the agent_utility_repr be provided 
+        It is required that either dual_thresholds_and_coefficients or the agent_utility_repr be provided 
         in order to reconstruct the others.
         """
-        if thresholds_and_ceofficients is not None:
-            thresholds = thresholds_and_ceofficients[0]
-            coefficients = thresholds_and_ceofficients[1]
-            agent_utility_repr = (thresholds_and_ceofficients[:, 2:] / [[1], [40]]).flatten()
+        if dual_thresholds_and_coefficients is not None:
+            dual_thresholds = dual_thresholds_and_coefficients[0]
+            coefficients = dual_thresholds_and_coefficients[1]
+            agent_utility_repr = (dual_thresholds_and_coefficients[:, 2:] / [[1], [40]]).flatten()
         elif agent_utility_repr is not None:
-            thresholds = np.concatenate(([31, 31], agent_utility_repr[:4])).astype(np.float32)
+            dual_thresholds = np.concatenate(([31, 31], agent_utility_repr[:4])).astype(np.float32)
             coefficients = np.concatenate(([-1, -5], agent_utility_repr[4:] * 40)).astype(np.float32)
         else:
             raise ValueError(
                 "Expected to receive at least one utility representation argument, but received none.")
 
-        self._thresholds = thresholds
+        self._dual_thresholds = dual_thresholds
         self._coefficients = coefficients
-        interests = (coefficients > 0).astype(int) * thresholds
-        super().__init__(utility_repr=np.array([thresholds, coefficients]),
+        interests = (coefficients > 0).astype(int) * dual_thresholds
+        super().__init__(utility_repr=np.array([dual_thresholds, coefficients]),
                          agent_utility_repr=agent_utility_repr,
                          interests=interests)
 
     def call(self, rewards: np.ndarray) -> np.ndarray:
-        return np.sum(np.where(rewards <= self._thresholds, rewards * self._coefficients, self._thresholds*self._coefficients))
+        return np.sum(np.where(rewards <= self._dual_thresholds,
+                               rewards * self._coefficients,
+                               self._dual_thresholds*self._coefficients))
 
 
 class TargetUtility(UtilityFunction):
@@ -352,6 +355,150 @@ def continuous_sample_linear_thresholds() -> np.ndarray:
     return np.array([[0, 0, 0, 0, 0, 0], np.concatenate((w01, coefficients))], dtype=np.float32)
 
 
+def sample_dual_thresholds_and_coefficients() -> np.ndarray:
+    """
+    Samples a 6-long vector of dual thresholds for the gathering environment and a 6-long 
+    vector of coefficients to be applied until the thresholds are exceeded.
+    All thresholds and coefficients are sampled at random between -20 and 20 in steps of 5 with the exception
+    of the first two entries which are fixed at a threshold of 31 and coefficients of  -1 and -5.
+    They respectively signal the punishment for taking a further time-step and the punishment for hitting a wall.
+    """
+    # The 4 entries of dual thresholds and coefficients are for (respectively):
+    # Green, Red, Yellow, Other agent taking red
+    dual_thresholds = np.random.choice(np.arange(0, 4, dtype=np.float32), size=4)
+    coefficients = np.random.choice(np.arange(-20, 21, step=5, dtype=np.float32), size=4)
+
+    # An environment with a negative preference vector will simply stop the episode after the first step.
+    # It is therefore pointless to sample such a vector. The same consideration goes for an environment with
+    # dual thresholds being all. 0
+    if np.all(coefficients <= 0) or np.all(dual_thresholds == 0):
+        return sample_dual_thresholds_and_coefficients()
+
+    w01 = np.array([-1, -5], dtype=np.float32)
+    return np.array(
+        [np.concatenate(([31, 31], dual_thresholds)).astype(np.float32),
+         np.concatenate((w01, coefficients))])
+
+
+def dense_sample_dual_thresholds_and_coefficients() -> np.ndarray:
+    """
+    Samples a 6-long vector of dual thresholds for the gathering environment and a 6-long 
+    vector of coefficients to be applied until the thresholds are exceeded.
+    All thresholds and coefficients are sampled at random with the exception of the first two entries
+    which are fixed at a threshold of 31 and coefficients of  -1 and -5. They respectively signal
+    the punishment for taking a further time-step and the punishment for hitting a wall.
+    """
+    # The 4 entries of dual thresholds and coefficients are for (respectively):
+    # Green, Red, Yellow, Other agent taking red
+    dual_thresholds = np.random.choice(np.arange(0, 4, dtype=np.float32), size=4)
+    coefficients = np.random.choice(np.arange(-20, 21, dtype=np.float32), size=4)
+
+    # An environment with a negative preference vector will simply stop the episode after the first step.
+    # It is therefore pointless to sample such a vector. The same consideration goes for an environment with
+    # dual thresholds being all. 0
+    if np.all(coefficients <= 0) or np.all(dual_thresholds == 0):
+        return dense_sample_dual_thresholds_and_coefficients()
+
+    w01 = np.array([-1, -5], dtype=np.float32)
+    return np.array(
+        [np.concatenate(([31, 31], dual_thresholds)).astype(np.float32),
+         np.concatenate((w01, coefficients))])
+
+
+def continuous_sample_dual_thresholds_and_coefficients() -> np.ndarray:
+    """
+    Samples a 6-long vector of dual thresholds for the gathering environment and a 6-long 
+    vector of coefficients to be applied until the thresholds are exceeded.
+    All thresholds and coefficients are sampled at random with the exception of the first two entries
+    which are fixed at a threshold of 31 and coefficients of  -1 and -5. They respectively signal
+    the punishment for taking a further time-step and the punishment for hitting a wall.
+    """
+    # The 4 entries of dual thresholds and coefficients are for (respectively):
+    # Green, Red, Yellow, Other agent taking red
+    dual_thresholds = np.random.choice(np.arange(0, 4), size=4)
+    coefficients = coefficients = np.random.uniform(-20, 20, size=4)
+
+    # An environment with a negative preference vector will simply stop the episode after the first step.
+    # It is therefore pointless to sample such a vector. The same consideration goes for an environment with
+    # dual thresholds being all. 0
+    if np.all(coefficients <= 0) or np.all(dual_thresholds == 0):
+        return continuous_sample_dual_thresholds_and_coefficients()
+
+    w01 = np.array([-1, -5])
+    return np.array(
+        [np.concatenate(([31, 31], dual_thresholds)),
+         np.concatenate((w01, coefficients))]).astype(np.float32)
+
+
+def sample_linear_dual_thresholds() -> np.ndarray:
+    """
+    Samples a 6-long vector of dual thresholds for the gathering environment and a 6-long 
+    vector of coefficients to be applied until the dual thresholds are exceeded.
+    The sampled vectors are selected so as to be equivalent to a linear utility sampling (i.e. the 
+    dual thresholds are all set to a max of 31).
+    The coefficients are sampled at random between -20 and 20 with step 5. The first two entries
+    are instead fixed at -1 and -5. They respectively signal the punishment for taking a
+    further time-step and the punishment for hitting a wall.
+    """
+    # The 4 entries of dual thresholds and coefficients are for (respectively):
+    # Green, Red, Yellow, Other agent taking red
+    coefficients = np.random.choice(np.arange(-20, 21, step=5, dtype=np.float32), size=4)
+
+    # An environment with a negative preference vector will simply stop the episode after the first step.
+    # It is therefore pointless to sample such a vector.
+    if np.all(coefficients <= 0):
+        return sample_linear_dual_thresholds()
+
+    w01 = np.array([-1, -5], dtype=np.float32)
+    return np.array([[31, 31, 31, 31, 31, 31], np.concatenate((w01, coefficients))], dtype=np.float32)
+
+
+def dense_sample_linear_dual_thresholds() -> np.ndarray:
+    """
+    Samples a 6-long vector of dual thresholds for the gathering environment and a 6-long 
+    vector of coefficients to be applied until the dual thresholds are exceeded.
+    The sampled vectors are selected so as to be equivalent to a linear utility sampling (i.e. the 
+    dual thresholds are all set to a max of 31).
+    The coefficients are sampled at random with the exception of the first two entries
+    which are fixed at -1 and -5. They respectively signal the punishment for taking a
+    further time-step and the punishment for hitting a wall.
+    """
+    # The 4 entries of dual thresholds and coefficients are for (respectively):
+    # Green, Red, Yellow, Other agent taking red
+    coefficients = np.random.choice(np.arange(-20, 21, dtype=np.float32), size=4)
+
+    # An environment with a negative preference vector will simply stop the episode after the first step.
+    # It is therefore pointless to sample such a vector.
+    if np.all(coefficients <= 0):
+        return dense_sample_linear_dual_thresholds()
+
+    w01 = np.array([-1, -5], dtype=np.float32)
+    return np.array([[31, 31, 31, 31, 31, 31], np.concatenate((w01, coefficients))], dtype=np.float32)
+
+
+def continuous_sample_linear_dual_thresholds() -> np.ndarray:
+    """
+    Samples a 6-long vector of dual thresholds for the gathering environment and a 6-long 
+    vector of coefficients to be applied until the dual thresholds are exceeded.
+    The sampled vectors are selected so as to be equivalent to a linear utility sampling (i.e. the 
+    dual thresholds are all set to a max of 31).
+    The coefficients are sampled at random with the exception of the first two entries
+    which are fixed at -1 and -5. They respectively signal the punishment for taking a
+    further time-step and the punishment for hitting a wall.
+    """
+    # The 4 entries of dual thresholds and coefficients are for (respectively):
+    # Green, Red, Yellow, Other agent taking red
+    coefficients = np.random.uniform(-20, 20, size=4)
+
+    # An environment with a negative preference vector will simply stop the episode after the first step.
+    # It is therefore pointless to sample such a vector.
+    if np.all(coefficients <= 0):
+        return continuous_sample_linear_dual_thresholds()
+
+    w01 = np.array([-1, -5], dtype=np.float32)
+    return np.array([[31, 31, 31, 31, 31, 31], np.concatenate((w01, coefficients))], dtype=np.float32)
+
+
 def sample_target() -> np.ndarray:
     """
     Samples a 6-long vector of targets for the gathering environment.
@@ -413,6 +560,32 @@ def sample_utility(utility_type: str = 'linear',
     elif utility_type == "continuous_linear_threshold":
         thresholds_and_coefficients = continuous_sample_linear_thresholds()
         return ThresholdUtility(thresholds_and_ceofficients=thresholds_and_coefficients)
+    
+    
+    elif utility_type == 'dual_threshold':
+        if utility_repr is not None:
+            return DualThresholdUtility(dual_thresholds_and_coefficients=utility_repr)
+        dual_thresholds_and_coefficients = sample_dual_thresholds_and_coefficients()
+        return DualThresholdUtility(dual_thresholds_and_coefficients=dual_thresholds_and_coefficients)
+    elif utility_type == 'dense_dual_threshold':
+        dual_thresholds_and_coefficients = dense_sample_dual_thresholds_and_coefficients()
+        return DualThresholdUtility(dual_thresholds_and_coefficients=dual_thresholds_and_coefficients)
+    elif utility_type == 'continuous_dual_threshold':
+        dual_thresholds_and_coefficients = continuous_sample_dual_thresholds_and_coefficients()
+        return DualThresholdUtility(dual_thresholds_and_coefficients=dual_thresholds_and_coefficients)
+    
+    
+    elif utility_type == "linear_dual_threshold":
+        if utility_repr is not None:
+            return DualThresholdUtility(dual_thresholds_and_coefficients=utility_repr)
+        dual_thresholds_and_coefficients = sample_linear_dual_thresholds()
+        return DualThresholdUtility(dual_thresholds_and_coefficients=dual_thresholds_and_coefficients)
+    elif utility_type == "dense_linear_dual_threshold":
+        dual_thresholds_and_coefficients = dense_sample_linear_dual_thresholds()
+        return DualThresholdUtility(dual_thresholds_and_coefficients=dual_thresholds_and_coefficients)
+    elif utility_type == "continuous_linear_dual_threshold":
+        dual_thresholds_and_coefficients = continuous_sample_linear_dual_thresholds()
+        return DualThresholdUtility(dual_thresholds_and_coefficients=dual_thresholds_and_coefficients)
     
     
     elif utility_type == "target":
