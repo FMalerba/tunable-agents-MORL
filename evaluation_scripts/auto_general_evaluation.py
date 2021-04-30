@@ -217,7 +217,7 @@ def main(_):
         elif (not lin_thresh) and ("linear" in env_kwargs["utility_type"]):
             env_kwargs["utility_type"] = env_kwargs["utility_type"][7:]
         env_kwargs["sampling"] = sampling
-        env = utility.create_environment(sampling=sampling, **env_kwargs)
+        env = utility.create_environment(**env_kwargs)
         tf_agent = agent.DQNAgent(epsilon=0, obs_spec=env.observation_spec())
         tf_agent.load_model(model_path)
 
