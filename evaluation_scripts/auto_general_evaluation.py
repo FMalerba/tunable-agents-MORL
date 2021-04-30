@@ -59,9 +59,9 @@ ENV_KWARGS = {
 }
 
 ENVS = [
-    "cum_linear_dual_threshold", "cum_linear_threshold_env", "cum_linear_env", "cum_target_env",
-    "cum_dual_threshold", "cum_threshold_env", "linear_dual_threshold", "linear_threshold_env", "linear_env",
-    "target_env", "dual_threshold", "threshold_env"
+    "cum_linear_threshold_env", "cum_linear_dual_threshold_env", "cum_linear_env", "cum_target_env",
+    "cum_dual_threshold_env", "cum_threshold_env", "linear_dual_threshold_env", "linear_threshold_env", "linear_env",
+    "target_env", "dual_threshold_env", "threshold_env"
 ]
 MODELS = ["64_64_model", "128_128_64_model", "256_128_128_64_64_model", "512_256_256_128_128_64_model"]
 TRAINING_IDS = ["replication" + train_id for train_id in ["", "-1", "-2", "-3", "-4", "-5"]]
