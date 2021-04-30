@@ -2,6 +2,7 @@ from absl import app
 from absl import flags
 from absl import logging
 
+import copy
 import gin
 import itertools
 import numpy as np
@@ -12,15 +13,49 @@ from tqdm import tqdm
 from tf_agents.environments import py_environment
 from tunable_agents import utility, agent
 
-ENV_DICT = {
-    "cum_linear_threshold_env": "cumulative_linear_threshold_env.gin",
-    "cum_linear_env": "cumulative_linear_env.gin",
-    "cum_target_env": "cumulative_target_env.gin",
-    "cum_threshold_env": "cumulative_threshold_env.gin",
-    "linear_threshold_env": "linear_threshold_env.gin",
-    "linear_env": "linear_env.gin",
-    "target_env": "target_env.gin",
-    "threshold_env": "threshold_utility_env.gin"
+ENV_KWARGS = {
+    'linear_env': {
+        "utility_type": "linear"
+    },
+    'cum_linear_env': {
+        "utility_type": "linear",
+        "cumulative_rewards_flag": True
+    },
+    'target_env': {
+        "utility_type": 'target'
+    },
+    'cum_target_env': {
+        "utility_type": 'target',
+        "cumulative_rewards_flag": True
+    },
+    'threshold_env': {
+        "utility_type": 'threshold'
+    },
+    'cum_threshold_env': {
+        "utility_type": 'threshold',
+        "cumulative_rewards_flag": True
+    },
+    'linear_threshold_env': {
+        "utility_type": 'linear_threshold'
+    },
+    'cum_linear_threshold_env': {
+        "utility_type": 'linear_threshold',
+        "cumulative_rewards_flag": True
+    },
+    'dual_threshold_env': {
+        "utility_type": 'dual_threshold'
+    },
+    'cum_dual_threshold_env': {
+        "utility_type": 'dual_threshold',
+        "cumulative_rewards_flag": True
+    },
+    'linear_dual_threshold_env': {
+        "utility_type": 'linear_dual_threshold'
+    },
+    'cum_linear_dual_threshold_env': {
+        "utility_type": 'linear_dual_threshold',
+        "cumulative_rewards_flag": True
+    }
 }
 
 ENVS = [
@@ -76,7 +111,7 @@ def check_lock(results_path: Path, reward_vector: bool) -> bool:
         sampled_size = np.load(results_path, allow_pickle=True).shape[0]
         if sampled_size >= (REWARD_VECTOR_EPISODES if reward_vector else UTILITY_EPISODES):
             return False
-    
+
     lock_name = results_path.name[:-4] + ("-reward_vector" * reward_vector) + ".npy"
     lock_path = LOCKS_PATH.joinpath(lock_name)
     if lock_path.exists():
@@ -170,15 +205,18 @@ def main(_):
         gin_config_path = Path("tunable-agents-MORL/configs/")
         gin_files = [
             gin_config_path.joinpath("qnets/", qnet_gin + ".gin"),
-            gin_config_path.joinpath("envs/", ENV_DICT[env_gin])
+            gin_config_path.joinpath("envs/", "linear_env.gin")
         ]
-        if lin_thresh: gin_bindings = ["GatheringWrapper.utility_type='linear_threshold'"]
-        elif "linear_threshold" in env_type: gin_bindings = ["GatheringWrapper.utility_type='threshold'"]
-        else: gin_bindings = []
-        utility.load_gin_configs(gin_files, gin_bindings)
+        utility.load_gin_configs(gin_files, [])
 
         # Loading trained agent model
-        env = utility.create_environment(sampling=sampling)
+        env_kwargs = copy.copy(ENV_KWARGS[env_gin])
+        if lin_thresh and (not "linear" in env_kwargs["utility_type"]):
+            env_kwargs["utility_type"] = "linear_" + env_kwargs["utility_type"]
+        elif (not lin_thresh) and ("linear" in env_kwargs["utility_type"]):
+            env_kwargs["utility_type"] = env_kwargs["utility_type"][7:]
+        env_kwargs["sampling"] = sampling
+        env = utility.create_environment(sampling=sampling, **env_kwargs)
         tf_agent = agent.DQNAgent(epsilon=0, obs_spec=env.observation_spec())
         tf_agent.load_model(model_path)
 
