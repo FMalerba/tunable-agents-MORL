@@ -214,7 +214,7 @@ def main(_):
         env_kwargs = copy.copy(ENV_KWARGS[env_gin])
         if lin_thresh and (not "linear" in env_kwargs["utility_type"]):
             env_kwargs["utility_type"] = "linear_" + env_kwargs["utility_type"]
-        elif (not lin_thresh) and ("linear" in env_kwargs["utility_type"]):
+        elif (not lin_thresh) and ("linear" in env_kwargs["utility_type"]) and ("threshold" in env_type):
             env_kwargs["utility_type"] = env_kwargs["utility_type"][7:]
         env_kwargs["sampling"] = sampling
         env = utility.create_environment(**env_kwargs)
