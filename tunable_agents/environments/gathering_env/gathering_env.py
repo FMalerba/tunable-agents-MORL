@@ -93,7 +93,7 @@ class GatheringWrapper(py_environment.PyEnvironment):
         super().__init__()
         if utility_type not in SUPPORTED_UTILITY_TYPES:
             raise ValueError(
-                f"{utility_type} is not among the yet supported utility types for the gathering environment")
+                "{} is not among the yet supported utility types for the gathering environment".format(utility_type))
 
         # If a utility representation is passed to the environment, then the corresponding utility is fixed and won't be resampled
         self._fixed_utility = utility_repr is not None
