@@ -181,7 +181,8 @@ class DQNAgent:
         # Compute loss and gradient for predictions on 'states'
         with tf.GradientTape() as tape:
             all_Q_values = self._model([states["state_obs"]] +
-                                       [states[key] for key in sorted(states.keys() - ["state_obs"])])
+                                       [states[key] for key in sorted(states.keys() - ["state_obs"])],
+                                       training=True)
             Q_values = tf.reduce_sum(all_Q_values * mask, axis=1, keepdims=True)
             loss = tf.reduce_mean(self._loss_fn(target_Q_values, Q_values))
         grads = tape.gradient(loss, self._model.trainable_variables)
