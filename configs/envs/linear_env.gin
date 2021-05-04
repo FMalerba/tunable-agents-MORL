@@ -57,6 +57,6 @@ MOGridworld.max_steps = 30
 # GatheringWrapper
 create_environment.game = 'gathering'
 GatheringWrapper.cumulative_rewards_flag = False
-GatheringWrapper.gamma = 0.99
+GatheringWrapper.gamma = 1
 GatheringWrapper.history_size = 3
 GatheringWrapper.utility_type = 'linear'
