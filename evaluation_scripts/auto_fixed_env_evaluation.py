@@ -2,6 +2,7 @@ from absl import app
 from absl import flags
 from absl import logging
 
+import copy
 import gin
 import itertools
 import numpy as np
@@ -11,7 +12,7 @@ from tqdm import tqdm
 
 from tunable_agents import utility, agent
 from tunable_agents.environments.gathering_env.gathering_env import GatheringWrapper
-from tunable_agents.environments.utility_functions import LinearUtility, TargetUtility, ThresholdUtility, UtilityFunction
+from tunable_agents.environments.utility_functions import DualThresholdUtility, LinearUtility, TargetUtility, ThresholdUtility, UtilityFunction
 
 from typing import List
 
@@ -43,11 +44,26 @@ ENV_KWARGS = {
     'cum_linear_threshold_env': {
         "utility_type": 'linear_threshold',
         "cumulative_rewards_flag": True
+    },
+    'dual_threshold_env': {
+        "utility_type": 'dual_threshold'
+    },
+    'cum_dual_threshold_env': {
+        "utility_type": 'dual_threshold',
+        "cumulative_rewards_flag": True
+    },
+    'linear_dual_threshold_env': {
+        "utility_type": 'linear_dual_threshold'
+    },
+    'cum_linear_dual_threshold_env': {
+        "utility_type": 'linear_dual_threshold',
+        "cumulative_rewards_flag": True
     }
 }
 ENVS = [
-    "cum_linear_threshold_env", "cum_linear_env", "cum_target_env", "cum_threshold_env",
-    "linear_threshold_env", "linear_env", "target_env", "threshold_env"
+    "cum_linear_threshold_env", "cum_linear_dual_threshold_env", "cum_linear_env", "cum_target_env",
+    "cum_dual_threshold_env", "cum_threshold_env", "linear_dual_threshold_env", "linear_threshold_env",
+    "linear_env", "target_env", "dual_threshold_env", "threshold_env"
 ]
 MODELS = ["64_64_model", "128_128_64_model", "256_128_128_64_64_model", "512_256_256_128_128_64_model"]
 TRAINING_IDS = ["replication" + train_id for train_id in ["", "-1", "-2", "-3", "-4", "-5"]]
@@ -60,10 +76,11 @@ def train_eval(training_id: str, model_id: str, env_id: str):
     pass
 
 
-def generate_results_path(results_dir: Path, env: str, model: str, training_id: str, lin_thresh: bool) -> Path:
+def generate_results_path(results_dir: Path, env: str, model: str, training_id: str,
+                          lin_thresh: bool) -> Path:
     experiment_id = "-".join([model, env, training_id])
     results_file_name = experiment_id + ".npy"
-    
+
     if lin_thresh:
         results_file_name = results_file_name.split("-")
         results_file_name[1] = results_file_name[1][:-4] + "_linear_env"
@@ -72,8 +89,7 @@ def generate_results_path(results_dir: Path, env: str, model: str, training_id: 
     if not results_dir.exists():
         results_dir.mkdir(parents=True)
 
-    aggregation_dir = results_dir.joinpath("fixed_env_results",
-                                           "-".join(results_file_name.split("-")[:2]))
+    aggregation_dir = results_dir.joinpath("fixed_env_results", "-".join(results_file_name.split("-")[:2]))
     results_path = aggregation_dir.joinpath(results_file_name)
 
     return results_path
@@ -116,35 +132,48 @@ def release_lock(results_path: Path) -> None:
 
 
 def utility_list(utility_type: str):
-    if utility_type == "linear":
+    if utility_type == "dual_threshold":
+        return [
+            DualThresholdUtility(dual_thresholds_and_coefficients=np.array(
+                [[31, 31, dual_thresh0, dual_thresh1, dual_thresh2, dual_thresh3], [-1, -5, r0, r1, r2, r3]],
+                dtype=np.float32)) for dual_thresh0 in range(3) for dual_thresh1 in range(3)
+            for dual_thresh2 in range(3) for dual_thresh3 in range(3) for r0 in np.arange(-20, 21, step=6)
+            for r1 in np.arange(-20, 21, step=6) for r2 in np.arange(-20, 21, step=6)
+            for r3 in np.arange(-20, 21, step=6)
+            if (r0 > 0) or (r1 > 0) or (r2 > 0) or (r3 > 0)
+        ]
+    elif utility_type == "linear_dual_threshold":
+        return [
+            DualThresholdUtility(dual_thresholds_and_coefficients=np.array(
+                [[31, 31, 31, 31, 31, 31], [-1, -5, r0, r1, r2, r3]], dtype=np.float32))
+            for r0 in np.arange(-20, 21, step=2) for r1 in np.arange(-20, 21, step=2)
+            for r2 in np.arange(-20, 21, step=2)
+            for r3 in np.arange(-20, 21, step=2)
+            if (r0 > 0) or (r1 > 0) or (r2 > 0) or (r3 > 0)
+        ]
+    elif utility_type == "linear":
         return [
             LinearUtility(weights=np.array([-1, -5, r0, r1, r2, r3], dtype=np.float32))
-            for r0 in np.arange(-20, 21, step=2)
-            for r1 in np.arange(-20, 21, step=2)
+            for r0 in np.arange(-20, 21, step=2) for r1 in np.arange(-20, 21, step=2)
             for r2 in np.arange(-20, 21, step=2)
             for r3 in np.arange(-20, 21, step=2)
             if (r0 > 0) or (r1 > 0) or (r2 > 0) or (r3 > 0)
         ]
     elif utility_type == "threshold":
         return [
-            ThresholdUtility(thresholds_and_ceofficients=np.array(
+            ThresholdUtility(thresholds_and_coefficients=np.array(
                 [[0, 0, thresh0, thresh1, thresh2, thresh3], [-1, -5, r0, r1, r2, r3]], dtype=np.float32))
-            for thresh0 in range(3)
-            for thresh1 in range(3)
-            for thresh2 in range(3)
-            for thresh3 in range(3)
-            for r0 in np.arange(-20, 21, step=6)
-            for r1 in np.arange(-20, 21, step=6)
+            for thresh0 in range(3) for thresh1 in range(3) for thresh2 in range(3) for thresh3 in range(3)
+            for r0 in np.arange(-20, 21, step=6) for r1 in np.arange(-20, 21, step=6)
             for r2 in np.arange(-20, 21, step=6)
             for r3 in np.arange(-20, 21, step=6)
             if (r0 > 0) or (r1 > 0) or (r2 > 0) or (r3 > 0)
         ]
     elif utility_type == "linear_threshold":
         return [
-            ThresholdUtility(thresholds_and_ceofficients=np.array(
+            ThresholdUtility(thresholds_and_coefficients=np.array(
                 [[0, 0, 0, 0, 0, 0], [-1, -5, r0, r1, r2, r3]], dtype=np.float32))
-            for r0 in np.arange(-20, 21, step=2)
-            for r1 in np.arange(-20, 21, step=2)
+            for r0 in np.arange(-20, 21, step=2) for r1 in np.arange(-20, 21, step=2)
             for r2 in np.arange(-20, 21, step=2)
             for r3 in np.arange(-20, 21, step=2)
             if (r0 > 0) or (r1 > 0) or (r2 > 0) or (r3 > 0)
@@ -180,7 +209,8 @@ def fixed_env_eval(tf_agent: agent.DQNAgent, utilities: List[UtilityFunction], *
 def main(_):
     logging.set_verbosity(logging.INFO)
 
-    for env_type, model, training_id, lin_thresh in itertools.product(ENVS, MODELS, TRAINING_IDS, [True, False]):
+    for env_type, model, training_id, lin_thresh in itertools.product(ENVS, MODELS, TRAINING_IDS,
+                                                                      [True, False]):
         if lin_thresh and not "threshold" in env_type:
             continue  # Can't evaluate a non threshold agent on threshold utilities.
         experiment_dir = os.path.join(FLAGS.root_dir, "-".join([model, env_type, training_id]))
@@ -208,16 +238,18 @@ def main(_):
         utility.load_gin_configs(gin_files, [])
 
         # Loading trained agent model
-        env_kwargs = ENV_KWARGS[env_gin]
-        if lin_thresh: env_kwargs["utility_type"] = "linear_threshold"
-        elif "linear_threshold" in env_type: env_kwargs["utility_type"] = "threshold"
+        env_kwargs = copy.copy(ENV_KWARGS[env_gin])
+        if lin_thresh and (not "linear" in env_kwargs["utility_type"]):
+            env_kwargs["utility_type"] = "linear_" + env_kwargs["utility_type"]
+        elif (not lin_thresh) and ("linear" in env_kwargs["utility_type"]) and ("threshold" in env_type):
+            env_kwargs["utility_type"] = env_kwargs["utility_type"][7:]
         env = utility.create_environment(**env_kwargs)
         tf_agent = agent.DQNAgent(epsilon=0, obs_spec=env.observation_spec())
         tf_agent.load_model(model_path)
 
         # Selecting the utilities to run on
         utilities = utility_list(env_kwargs["utility_type"])
-        
+
         # Evaluating the agent on the fixed environment
         results = fixed_env_eval(tf_agent, utilities, **env_kwargs)
 
