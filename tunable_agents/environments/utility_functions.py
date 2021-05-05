@@ -71,18 +71,18 @@ class LinearUtility(UtilityFunction):
 class ThresholdUtility(UtilityFunction):
 
     def __init__(self,
-                 thresholds_and_ceofficients: Optional[np.ndarray] = None,
+                 thresholds_and_coefficients: Optional[np.ndarray] = None,
                  agent_utility_repr: Optional[np.ndarray] = None) -> None:
         """
         Implements and contains all information and possible different representations of a threshold utility function.
         
-        It is required that either thresholds_and_ceofficients or the agent_utility_repr be provided 
+        It is required that either thresholds_and_coefficients or the agent_utility_repr be provided 
         in order to reconstruct the others.
         """
-        if thresholds_and_ceofficients is not None:
-            thresholds = thresholds_and_ceofficients[0]
-            coefficients = thresholds_and_ceofficients[1]
-            agent_utility_repr = (thresholds_and_ceofficients[:, 2:] / [[1], [40]]).flatten()
+        if thresholds_and_coefficients is not None:
+            thresholds = thresholds_and_coefficients[0]
+            coefficients = thresholds_and_coefficients[1]
+            agent_utility_repr = (thresholds_and_coefficients[:, 2:] / [[1], [40]]).flatten()
         elif agent_utility_repr is not None:
             thresholds = np.concatenate(([0, 0], agent_utility_repr[:4])).astype(np.float32)
             coefficients = np.concatenate(([-1, -5], agent_utility_repr[4:] * 40)).astype(np.float32)
@@ -343,15 +343,15 @@ def sample_utility(utility_type: str = 'linear',
 
     elif utility_type == 'threshold':
         if utility_repr is not None:
-            return ThresholdUtility(thresholds_and_ceofficients=utility_repr)
+            return ThresholdUtility(thresholds_and_coefficients=utility_repr)
         thresholds_and_coefficients = sample_thresholds_and_coefficients(sampling=sampling)
-        return ThresholdUtility(thresholds_and_ceofficients=thresholds_and_coefficients)
+        return ThresholdUtility(thresholds_and_coefficients=thresholds_and_coefficients)
 
     elif utility_type == "linear_threshold":
         if utility_repr is not None:
-            return ThresholdUtility(thresholds_and_ceofficients=utility_repr)
+            return ThresholdUtility(thresholds_and_coefficients=utility_repr)
         thresholds_and_coefficients = sample_linear_thresholds(sampling=sampling)
-        return ThresholdUtility(thresholds_and_ceofficients=thresholds_and_coefficients)
+        return ThresholdUtility(thresholds_and_coefficients=thresholds_and_coefficients)
 
     elif utility_type == 'dual_threshold':
         if utility_repr is not None:
