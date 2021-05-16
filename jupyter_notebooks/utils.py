@@ -1,8 +1,10 @@
 import gin
 import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 import numpy as np
 import os
 import pandas as pd
+from pathlib import Path
 from scipy.stats import wasserstein_distance
 from scipy.spatial.distance import pdist
 
@@ -61,11 +63,36 @@ def load_results(path: str) -> Dict[str, np.ndarray]:
         key_split[0] = ENV_DICT[key_split[0]]
         new_key = "-".join(key_split)
         key_folder = os.path.join(path, key)
+        if len(os.listdir(key_folder)) != 6:
+            raise RuntimeError(f"Incomplete results for this experiment: {key_folder}")
         results[new_key] = [
             np.load(os.path.join(key_folder, file), allow_pickle=True) for file in os.listdir(key_folder)
         ]
+        sample_sizes = np.array([arr.shape[0] for arr in results[new_key]])
+        if np.any(sample_sizes != sample_sizes[0]):
+            raise RuntimeError(f"Non-matching results for this experiment: {key_folder}")
+            
 
     return results
+
+
+def convert_to_latex(df: pd.DataFrame) -> str:
+    models = ["Tiny", "Small", "Medium", "Large"]
+    latex_output = ""
+    i = 0
+    for row in df.iterrows():
+        latex_output += models[i] + " &"
+        i += 1
+        for cell in row[1].values:
+            mean, std = cell.split(" ")
+            latex_output += " " + mean + " "
+            std = std.replace("+-", "$\pm$")
+            latex_output += std
+            latex_output += "&"
+        latex_output = latex_output[:-1]
+        latex_output += "\\\\"
+
+    return latex_output
 
 
 def load_reward_vector_results(path: str) -> Dict[str, np.ndarray]:
@@ -245,6 +272,25 @@ def non_dominated_table(results: Dict[str, List[np.ndarray]]) -> pd.DataFrame:
     return df
 
 
+def load_csv(path: str) -> pd.DataFrame:
+    df = pd.read_csv(path)
+    df['Setting'] = pd.Categorical(df["Setting"], ENVS)
+    df['Model'] = pd.Categorical(df["Model"], MODELS)
+    return df
+
+
+def plot_training_history(path: Path, model: str, env: str) -> None:
+    exp_dirs =  ["-".join((model, env, "replication" + train_id)) for train_id in ["", "-1", "-2", "-3", "-4", "-5"]]
+    plt.figure(figsize=(25, 10))
+    for i in range(6):
+        plt.subplot(2, 3, i+1)
+        image_path = path.joinpath(exp_dirs[i], "plots", "reward_plot.png")
+        img = mpimg.imread(image_path)
+        plt.imshow(img)
+        plt.axis('off')
+    plt.show()
+
+
 def render_time_step(time_step: ts.TimeStep, ax, action: int = None) -> None:
     image = time_step.observation['state_obs'][:, :, -3:]
     ax.imshow(image)
@@ -282,13 +328,15 @@ ALL_SETTINGS = set(ENVS)
 CUMULATIVE_SETTINGS = set([env for env in ENVS if "Cumulative Rewards" in env])
 
 DUAL_THRESHOLD_SETTINGS = set([
-    "{}{}Dual Threshold".format("Cumulative Rewards " * cum_env, SAMPLINGS_DICT[sampling])
+    "{}{}{}Dual Threshold".format("Cumulative Rewards " * cum_env, SAMPLINGS_DICT[sampling], "Linear to " * lin_thresh)
+    for lin_thresh in [True, False]
     for sampling in ["", "dense", "continuous"]
     for cum_env in [False, True]
 ])
 
 LINEAR_DUAL_THRESHOLD_SETTINGS = set([
-    "{}{}Linear Dual Threshold".format("Cumulative Rewards " * cum_env, SAMPLINGS_DICT[sampling])
+    "{}{}{}Linear Dual Threshold".format("Cumulative Rewards " * cum_env, SAMPLINGS_DICT[sampling], "Linear to " * lin_thresh)
+    for lin_thresh in [True, False]
     for sampling in ["", "dense", "continuous"]
     for cum_env in [False, True]
 ])
@@ -300,13 +348,15 @@ LINEAR_SETTINGS = set([
 ])
 
 THRESHOLD_SETTINGS = set([
-    "{}{}Threshold".format("Cumulative Rewards " * cum_env, SAMPLINGS_DICT[sampling])
+    "{}{}{}Threshold".format("Cumulative Rewards " * cum_env, SAMPLINGS_DICT[sampling], "Linear to " * lin_thresh)
+    for lin_thresh in [True, False]
     for sampling in ["", "dense", "continuous"]
     for cum_env in [False, True]
 ])
 
 LINEAR_THRESHOLD_SETTINGS = set([
-    "{}{}Linear Threshold".format("Cumulative Rewards " * cum_env, SAMPLINGS_DICT[sampling])
+    "{}{}{}Linear Threshold".format("Cumulative Rewards " * cum_env, SAMPLINGS_DICT[sampling], "Linear to " * lin_thresh)
+    for lin_thresh in [True, False]
     for sampling in ["", "dense", "continuous"]
     for cum_env in [False, True]
 ])
