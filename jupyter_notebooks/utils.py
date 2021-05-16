@@ -50,23 +50,23 @@ ENV_DICT = dict([("{}{}{}{}env".format("cum_" * cum_env, utility + "_", (samplin
                  if not (sampling and ("target" in utility))])
 
 
-def load_results(path: str) -> Dict[str, np.ndarray]:
+def load_results(path: Path) -> Dict[str, np.ndarray]:
     keys = set()
-    for file in os.listdir(path):
-        file_path = os.path.join(path, file)
-        if os.path.isdir(file_path) and len(os.listdir(file_path)) == 6:
-            keys.add(file)
+    for file in path.iterdir():
+        file_path = path.joinpath(file)
+        if file_path.is_dir() and len(list(file_path.iterdir())) == 6:
+            keys.add(file.name)
 
     results = dict()
     for key in keys:
         key_split = key.split("-")[::-1]
         key_split[0] = ENV_DICT[key_split[0]]
         new_key = "-".join(key_split)
-        key_folder = os.path.join(path, key)
-        if len(os.listdir(key_folder)) != 6:
+        key_folder = path.joinpath(key)
+        if len(list(key_folder.iterdir())) != 6:
             raise RuntimeError(f"Incomplete results for this experiment: {key_folder}")
         results[new_key] = [
-            np.load(os.path.join(key_folder, file), allow_pickle=True) for file in os.listdir(key_folder)
+            np.load(key_folder.joinpath(file), allow_pickle=True) for file in key_folder.iterdir()
         ]
         sample_sizes = np.array([arr.shape[0] for arr in results[new_key]])
         if np.any(sample_sizes != sample_sizes[0]):
@@ -95,23 +95,23 @@ def convert_to_latex(df: pd.DataFrame) -> str:
     return latex_output
 
 
-def load_reward_vector_results(path: str) -> Dict[str, np.ndarray]:
+def load_reward_vector_results(path: Path) -> Dict[str, np.ndarray]:
     keys = set()
-    for file in os.listdir(path):
-        file_path = os.path.join(path, file)
-        if os.path.isdir(file_path) and len(os.listdir(file_path)) == 6:
-            keys.add(file)
+    for file in path.iterdir():
+        file_path = path.joinpath(file)
+        if file_path.is_dir() and len(list(file_path.iterdir())) == 6:
+            keys.add(file.name)
 
     results = dict()
     for key in keys:
         key_split = key.split("-")[::-1]
         key_split[0] = ENV_DICT[key_split[0]]
         new_key = "-".join(key_split)
-        key_folder = os.path.join(path, key)
+        key_folder = path.joinpath(key)
         results[new_key] = [
             np.array(
-                [cum_rew for cum_rew in np.load(os.path.join(key_folder, file), allow_pickle=True)[:, 1]],
-                dtype=np.float32) for file in os.listdir(key_folder)
+                [cum_rew for cum_rew in np.load(key_folder.joinpath(file), allow_pickle=True)[:, 1]],
+                dtype=np.float32) for file in key_folder.iterdir()
         ]
 
     return results
