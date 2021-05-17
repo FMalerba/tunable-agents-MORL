@@ -145,6 +145,30 @@ def domination_metric(u: np.ndarray, v: np.ndarray) -> float:
     return 0
 
 
+def compute_non_dominated(unique: np.ndarray) -> np.ndarray:
+    """Given an array of unique reward vectors, determines which ones are non-dominated.
+
+    Args:
+        unique (np.ndarray): numpy array of unique reward vectors
+
+    Returns:
+        np.ndarray: boolean array where each entry specifies whether the corresponding reward vector is
+                    non-dominated within the set or not.
+    """
+    m = unique.shape[0]
+    domination_matrix = pdist(unique, domination_metric)
+    is_non_dominated = np.ones(shape=(m,), dtype=bool)
+    for i in range(m):
+        if is_non_dominated[i]:
+            start_range = m * i + i + 1 - ((i + 2) * (i + 1)) // 2
+            end_range = m * i + m - 1 - ((i + 2) * (i + 1)) // 2
+            i_range = domination_matrix[start_range:end_range]
+            is_non_dominated[i] = np.all(i_range != -1)
+            is_non_dominated[i + np.argwhere(i_range == 1)]
+    
+    return is_non_dominated
+
+
 def wds_tables(results: Dict[str, List[np.ndarray]]) -> Tuple[pd.DataFrame]:
     keys = sorted(results.keys(), key=sorting)
     intra_wds = pd.DataFrame(columns=["Setting", "Model", "WD"])
@@ -242,19 +266,9 @@ def non_dominated_table(results: Dict[str, List[np.ndarray]]) -> pd.DataFrame:
         # Cumulative reward vectors are transformed to represent the fact that the first two entries
         # (time and wall penalties) are rewards to be minimized
         uniques = [np.unique(result, axis=0) * [-1, -1, 1, 1, 1, 1] for result in results[key]]
-        domination_matrices = [pdist(unique, domination_metric) for unique in uniques]
         non_dominated = []
-        for index, domination_matrix in enumerate(domination_matrices):
-            m = uniques[index].shape[0]
-            is_non_dominated = np.ones(shape=(m,), dtype=bool)
-            for i in range(m):
-                if is_non_dominated[i]:
-                    start_range = m * i + i + 1 - ((i + 2) * (i + 1)) // 2
-                    end_range = m * i + m - 1 - ((i + 2) * (i + 1)) // 2
-                    i_range = domination_matrix[start_range:end_range]
-                    is_non_dominated[i] = np.all(i_range != -1)
-                    is_non_dominated[i + np.argwhere(i_range == 1)]
-
+        for unique in uniques:
+            is_non_dominated = compute_non_dominated(unique=unique)
             non_dominated.append(np.sum(is_non_dominated))
 
         mean_val = np.round(np.mean(non_dominated), 1)
