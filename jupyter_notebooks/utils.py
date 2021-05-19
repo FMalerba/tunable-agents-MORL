@@ -150,13 +150,13 @@ def compute_non_dominated(unique: np.ndarray) -> np.ndarray:
     m = unique.shape[0]
     domination_matrix = pdist(unique, domination_metric)
     is_non_dominated = np.ones(shape=(m,), dtype=bool)
-    for i in range(m):
+    for i in range(m-1):
         if is_non_dominated[i]:
             start_range = m * i + i + 1 - ((i + 2) * (i + 1)) // 2
             end_range = m * i + m - 1 - ((i + 2) * (i + 1)) // 2
-            i_range = domination_matrix[start_range:end_range]
+            i_range = domination_matrix[start_range:end_range+1]
             is_non_dominated[i] = np.all(i_range != -1)
-            is_non_dominated[i + np.argwhere(i_range == 1)]
+            is_non_dominated[i + 1 + np.argwhere(i_range == 1)] = 0
     
     return is_non_dominated
 
