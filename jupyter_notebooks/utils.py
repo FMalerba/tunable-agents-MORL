@@ -51,11 +51,7 @@ ENV_DICT = dict([("{}{}{}{}env".format("cum_" * cum_env, utility + "_", (samplin
 
 
 def load_results(path: Path) -> Dict[str, np.ndarray]:
-    keys = set()
-    for file in path.iterdir():
-        file_path = path.joinpath(file)
-        if file_path.is_dir() and len(list(file_path.iterdir())) == 6:
-            keys.add(file.name)
+    keys = set([file.name for file in path.iterdir() if (file.is_dir() and (len(list(file.iterdir())) == 6))])
 
     results = dict()
     for key in keys:
@@ -66,7 +62,7 @@ def load_results(path: Path) -> Dict[str, np.ndarray]:
         if len(list(key_folder.iterdir())) != 6:
             raise RuntimeError(f"Incomplete results for this experiment: {key_folder}")
         results[new_key] = [
-            np.load(key_folder.joinpath(file), allow_pickle=True) for file in key_folder.iterdir()
+            np.load(file, allow_pickle=True) for file in key_folder.iterdir()
         ]
         sample_sizes = np.array([arr.shape[0] for arr in results[new_key]])
         if np.any(sample_sizes != sample_sizes[0]):
@@ -96,11 +92,7 @@ def convert_to_latex(df: pd.DataFrame) -> str:
 
 
 def load_reward_vector_results(path: Path) -> Dict[str, np.ndarray]:
-    keys = set()
-    for file in path.iterdir():
-        file_path = path.joinpath(file)
-        if file_path.is_dir() and len(list(file_path.iterdir())) == 6:
-            keys.add(file.name)
+    keys = set([file.name for file in path.iterdir() if (file.is_dir() and (len(list(file.iterdir())) == 6))])
 
     results = dict()
     for key in keys:
@@ -110,7 +102,7 @@ def load_reward_vector_results(path: Path) -> Dict[str, np.ndarray]:
         key_folder = path.joinpath(key)
         results[new_key] = [
             np.array(
-                [cum_rew for cum_rew in np.load(key_folder.joinpath(file), allow_pickle=True)[:, 1]],
+                [cum_rew for cum_rew in np.load(file, allow_pickle=True)[:, 1]],
                 dtype=np.float32) for file in key_folder.iterdir()
         ]
 
