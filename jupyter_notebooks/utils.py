@@ -224,51 +224,31 @@ def utilities_table(results: Dict[str, List[np.ndarray]]) -> pd.DataFrame:
     return df
 
 
-def uniques_table(results: Dict[str, List[np.ndarray]]) -> pd.DataFrame:
+def uniques_non_dom_table(results: Dict[str, List[np.ndarray]]) -> pd.DataFrame:
     keys = sorted(results.keys(), key=sorting)
-    df = pd.DataFrame(columns=["Setting", "Model", "Uniques"])
-
-    for key in keys:
-        env, model = key.split("-")
-
-        uniques = [np.unique(result, axis=0).shape[0] for result in results[key]]
-        mean_val = np.round(np.mean(uniques), 1)
-        std_err = np.round(np.std(uniques) / np.sqrt(len(uniques)), 2)
-
-        df = df.append({
-            "Setting": env,
-            "Model": model,
-            "Uniques": f"{mean_val} (+-{std_err})"
-        },
-                       ignore_index=True)
-
-    df['Setting'] = pd.Categorical(df["Setting"], ENVS)
-    df['Model'] = pd.Categorical(df["Model"], MODELS)
-
-    return df
-
-
-def non_dominated_table(results: Dict[str, List[np.ndarray]]) -> pd.DataFrame:
-    keys = sorted(results.keys(), key=sorting)
-    df = pd.DataFrame(columns=["Setting", "Model", "Non-Dominated"])
-
+    df = pd.DataFrame(columns=["Setting", "Model", "Uniques", "Non-Dominated"])
+    
     for key in tqdm(keys):
         env, model = key.split("-")
 
-        # Cumulative reward vectors are transformed to represent the fact that the first two entries
-        # (time and wall penalties) are rewards to be minimized
         uniques = [np.unique(result, axis=0) * [-1, -1, 1, 1, 1, 1] for result in results[key]]
+        
         non_dominated = []
         for unique in uniques:
             is_non_dominated = compute_non_dominated(unique=unique)
             non_dominated.append(np.sum(is_non_dominated))
+        
+        uniques_shapes = [unique.shape[0] for unique in uniques]
+        mean_val_uniques = np.round(np.mean(uniques_shapes), 1)
+        std_err_uniques = np.round(np.std(uniques_shapes) / np.sqrt(len(uniques_shapes)), 2)
+        mean_val_non_dom = np.round(np.mean(non_dominated), 1)
+        std_err_non_dom = np.round(np.std(non_dominated) / np.sqrt(len(non_dominated)), 2)
 
-        mean_val = np.round(np.mean(non_dominated), 1)
-        std_err = np.round(np.std(non_dominated) / np.sqrt(len(non_dominated)), 2)
         df = df.append({
             "Setting": env,
             "Model": model,
-            "Non-Dominated": f"{mean_val} (+-{std_err})"
+            "Uniques": f"{mean_val_uniques} (+-{std_err_uniques})",
+            "Non-Dominated": f"{mean_val_non_dom} (+-{std_err_non_dom})"
         },
                        ignore_index=True)
 
