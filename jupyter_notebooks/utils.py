@@ -394,3 +394,10 @@ CONTINUOUS_SETTINGS = set([
     for cum_env in CUM_ENVS
     if not (lin_thresh and (not "threshold" in utility))
 ])
+
+
+if __name__ == "__main__":
+    results_path = Path("C:/Users/maler/Federico/Università/Master/Tesi/evaluation_results/")
+    fixed_env_results_path = results_path.joinpath("fixed_env_results/")
+    fixed_env_results = load_results(fixed_env_results_path)
+    fixed_env_unique_non_dom_table = uniques_non_dom_table(fixed_env_results)
