@@ -25,13 +25,17 @@ UTILITIES_DICT = {
 }
 SAMPLINGS_DICT = {"": "", "dense": "Dense ", "continuous": "Continuous "}
 # LISTS THAT ARE USED FOR CONSISTENT SORTING OF ENVIRONMENTS AND MODELS
+LINEAR_THRESHOLDS = [False, True]
+UTILITIES = ["linear", "threshold", "linear_threshold", "dual_threshold", "linear_dual_threshold", "target"]
+SAMPLINGS = ["", "dense", "continuous"]
+CUM_ENVS = [False, True]
 ENVS = [
     "{}{}{}{}".format("Cumulative Rewards " * cum_env, SAMPLINGS_DICT[sampling], "Linear to " * lin_thresh,
                       UTILITIES_DICT[utility])
-    for lin_thresh in [False, True]
-    for utility in ["linear", "threshold", "linear_threshold", "dual_threshold", "linear_dual_threshold", "target"]
-    for sampling in ["", "dense", "continuous"]
-    for cum_env in [False, True]
+    for lin_thresh in LINEAR_THRESHOLDS
+    for utility in UTILITIES
+    for sampling in SAMPLINGS
+    for cum_env in CUM_ENVS
     if not (lin_thresh and (not "threshold" in utility))
     if not (sampling and ("target" in utility))
 ]
@@ -42,10 +46,10 @@ ENV_DICT = dict([("{}{}{}{}env".format("cum_" * cum_env, utility + "_", (samplin
                                        "linear_" * lin_thresh),
                   "{}{}{}{}".format("Cumulative Rewards " * cum_env, SAMPLINGS_DICT[sampling],
                                     "Linear to " * lin_thresh, UTILITIES_DICT[utility]))
-                 for lin_thresh in [False, True]
-                 for utility in ["linear", "threshold", "linear_threshold", "dual_threshold", "linear_dual_threshold", "target"]
-                 for sampling in ["", "dense", "continuous"]
-                 for cum_env in [False, True]
+                 for lin_thresh in LINEAR_THRESHOLDS
+                 for utility in UTILITIES
+                 for sampling in SAMPLINGS
+                 for cum_env in CUM_ENVS
                  if not (lin_thresh and (not "threshold" in utility))
                  if not (sampling and ("target" in utility))])
 
@@ -315,36 +319,36 @@ CUMULATIVE_SETTINGS = set([env for env in ENVS if "Cumulative Rewards" in env])
 
 DUAL_THRESHOLD_SETTINGS = set([
     "{}{}{}Dual Threshold".format("Cumulative Rewards " * cum_env, SAMPLINGS_DICT[sampling], "Linear to " * lin_thresh)
-    for lin_thresh in [True, False]
-    for sampling in ["", "dense", "continuous"]
-    for cum_env in [False, True]
+    for lin_thresh in LINEAR_THRESHOLDS
+    for sampling in SAMPLINGS
+    for cum_env in CUM_ENVS
 ])
 
 LINEAR_DUAL_THRESHOLD_SETTINGS = set([
     "{}{}{}Linear Dual Threshold".format("Cumulative Rewards " * cum_env, SAMPLINGS_DICT[sampling], "Linear to " * lin_thresh)
-    for lin_thresh in [True, False]
-    for sampling in ["", "dense", "continuous"]
-    for cum_env in [False, True]
+    for lin_thresh in LINEAR_THRESHOLDS
+    for sampling in SAMPLINGS
+    for cum_env in CUM_ENVS
 ])
 
 LINEAR_SETTINGS = set([
     "{}{}Linear".format("Cumulative Rewards " * cum_env, SAMPLINGS_DICT[sampling])
-    for sampling in ["", "dense", "continuous"]
-    for cum_env in [False, True]
+    for sampling in SAMPLINGS
+    for cum_env in CUM_ENVS
 ])
 
 THRESHOLD_SETTINGS = set([
     "{}{}{}Threshold".format("Cumulative Rewards " * cum_env, SAMPLINGS_DICT[sampling], "Linear to " * lin_thresh)
-    for lin_thresh in [True, False]
-    for sampling in ["", "dense", "continuous"]
-    for cum_env in [False, True]
+    for lin_thresh in LINEAR_THRESHOLDS
+    for sampling in SAMPLINGS
+    for cum_env in CUM_ENVS
 ])
 
 LINEAR_THRESHOLD_SETTINGS = set([
     "{}{}{}Linear Threshold".format("Cumulative Rewards " * cum_env, SAMPLINGS_DICT[sampling], "Linear to " * lin_thresh)
-    for lin_thresh in [True, False]
-    for sampling in ["", "dense", "continuous"]
-    for cum_env in [False, True]
+    for lin_thresh in LINEAR_THRESHOLDS
+    for sampling in SAMPLINGS
+    for cum_env in CUM_ENVS
 ])
 
 TARGET_SETTINGS = {'Cumulative Rewards Target', 'Target'}
@@ -353,31 +357,31 @@ LINEAR_TO_SETTINGS = set([
     "{}{}Linear to {}".format("Cumulative Rewards " * cum_env, SAMPLINGS_DICT[sampling],
                       UTILITIES_DICT[utility])
     for utility in ["linear", "threshold", "linear_threshold", "dual_threshold", "linear_dual_threshold"]
-    for sampling in ["", "dense", "continuous"]
-    for cum_env in [False, True]
+    for sampling in SAMPLINGS
+    for cum_env in CUM_ENVS
 ])
 
 STANDARD_SAMPLING_SETTINGS = set([
     "{}{}{}".format("Cumulative Rewards " * cum_env, "Linear to " * lin_thresh, UTILITIES_DICT[utility])
-    for lin_thresh in [False, True]
-    for utility in ["linear", "threshold", "linear_threshold", "dual_threshold", "linear_dual_threshold", "target"]
-    for cum_env in [False, True]
+    for lin_thresh in LINEAR_THRESHOLDS
+    for utility in UTILITIES
+    for cum_env in CUM_ENVS
     if not (lin_thresh and (not "threshold" in utility))
 ])
 
 DENSE_SAMPLING_SETTINGS = set([
     "{}Dense {}{}".format("Cumulative Rewards " * cum_env, "Linear to " * lin_thresh, UTILITIES_DICT[utility])
-    for lin_thresh in [False, True]
+    for lin_thresh in LINEAR_THRESHOLDS
     for utility in ["linear", "threshold", "linear_threshold", "dual_threshold", "linear_dual_threshold"]
-    for cum_env in [False, True]
+    for cum_env in CUM_ENVS
     if not (lin_thresh and (not "threshold" in utility))
 ])
 
 CONTINUOUS_SETTINGS = set([
     "{}Continuous {}{}".format("Cumulative Rewards " * cum_env, "Linear to " * lin_thresh,
                                UTILITIES_DICT[utility])
-    for lin_thresh in [False, True]
+    for lin_thresh in LINEAR_THRESHOLDS
     for utility in ["linear", "threshold", "linear_threshold", "dual_threshold", "linear_dual_threshold"]
-    for cum_env in [False, True]
+    for cum_env in CUM_ENVS
     if not (lin_thresh and (not "threshold" in utility))
 ])
