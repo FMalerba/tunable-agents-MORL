@@ -2,7 +2,6 @@ import gin
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import numpy as np
-import os
 import pandas as pd
 from pathlib import Path
 from scipy.stats import wasserstein_distance
@@ -11,6 +10,7 @@ from scipy.spatial.distance import pdist
 from tf_agents.trajectories import time_step as ts
 from tf_agents.environments import py_environment
 from tunable_agents.agent import DQNAgent
+from tunable_agents.environments.utility_functions import DualThresholdUtility, LinearUtility, TargetUtility, ThresholdUtility, UtilityFunction
 
 from tqdm import tqdm
 from typing import Dict, List, Tuple
@@ -47,8 +47,7 @@ ENV_DICT = dict([("{}{}{}{}env".format("cum_" * cum_env, utility + "_", (samplin
                   "{}{}{}{}".format("Cumulative Rewards " * cum_env, SAMPLINGS_DICT[sampling],
                                     "Linear to " * lin_thresh, UTILITIES_DICT[utility]))
                  for lin_thresh in LINEAR_THRESHOLDS
-                 for utility in UTILITIES
-                 for sampling in SAMPLINGS
+                 for utility in UTILITIES for sampling in SAMPLINGS
                  for cum_env in CUM_ENVS
                  if not (lin_thresh and (not "threshold" in utility))
                  if not (sampling and ("target" in utility))])
@@ -65,13 +64,10 @@ def load_results(path: Path) -> Dict[str, np.ndarray]:
         key_folder = path.joinpath(key)
         if len(list(key_folder.iterdir())) != 6:
             raise RuntimeError(f"Incomplete results for this experiment: {key_folder}")
-        results[new_key] = [
-            np.load(file, allow_pickle=True) for file in key_folder.iterdir()
-        ]
+        results[new_key] = [np.load(file, allow_pickle=True) for file in key_folder.iterdir()]
         sample_sizes = np.array([arr.shape[0] for arr in results[new_key]])
         if np.any(sample_sizes != sample_sizes[0]):
             raise RuntimeError(f"Non-matching results for this experiment: {key_folder}")
-            
 
     return results
 
@@ -105,9 +101,9 @@ def load_reward_vector_results(path: Path) -> Dict[str, np.ndarray]:
         new_key = "-".join(key_split)
         key_folder = path.joinpath(key)
         results[new_key] = [
-            np.array(
-                [cum_rew for cum_rew in np.load(file, allow_pickle=True)[:, 1]],
-                dtype=np.float32) for file in key_folder.iterdir()
+            np.array([cum_rew
+                      for cum_rew in np.load(file, allow_pickle=True)[:, 1]], dtype=np.float32)
+            for file in key_folder.iterdir()
         ]
 
     return results
@@ -154,14 +150,14 @@ def compute_non_dominated(unique: np.ndarray) -> np.ndarray:
     m = unique.shape[0]
     domination_matrix = pdist(unique, domination_metric)
     is_non_dominated = np.ones(shape=(m,), dtype=bool)
-    for i in range(m-1):
+    for i in range(m - 1):
         if is_non_dominated[i]:
             start_range = m * i + i + 1 - ((i + 2) * (i + 1)) // 2
             end_range = m * i + m - 1 - ((i + 2) * (i + 1)) // 2
-            i_range = domination_matrix[start_range:end_range+1]
+            i_range = domination_matrix[start_range:end_range + 1]
             is_non_dominated[i] = np.all(i_range != -1)
             is_non_dominated[i + 1 + np.argwhere(i_range == 1)] = 0
-    
+
     return is_non_dominated
 
 
@@ -230,31 +226,38 @@ def utilities_table(results: Dict[str, List[np.ndarray]]) -> pd.DataFrame:
 
 def uniques_non_dom_table(results: Dict[str, List[np.ndarray]]) -> pd.DataFrame:
     keys = sorted(results.keys(), key=sorting)
-    df = pd.DataFrame(columns=["Setting", "Model", "Uniques", "Non-Dominated"])
-    
+    df = pd.DataFrame(
+        columns=["Setting", "Model", "Uniques", "Non-Dominated", "Non-Dominated %"])
+
     for key in tqdm(keys):
         env, model = key.split("-")
 
-        uniques = [np.unique(result, axis=0) * [-1, -1, 1, 1, 1, 1] for result in results[key]]
-        
+        uniques_counts = [np.unique(result, axis=0, return_counts=True) for result in results[key]]
+
         non_dominated = []
-        for unique in uniques:
-            is_non_dominated = compute_non_dominated(unique=unique)
+        non_dominated_perc = []
+        for unique, counts in uniques_counts:
+            is_non_dominated = compute_non_dominated(unique=unique * [-1, -1, 1, 1, 1, 1])
+            non_dominated_perc.append(np.sum(counts[is_non_dominated]) / np.sum(counts))
             non_dominated.append(np.sum(is_non_dominated))
-        
-        uniques_shapes = [unique.shape[0] for unique in uniques]
+
+        uniques_shapes = [unique.shape[0] for unique, counts in uniques_counts]
         mean_val_uniques = np.round(np.mean(uniques_shapes), 1)
         std_err_uniques = np.round(np.std(uniques_shapes) / np.sqrt(len(uniques_shapes)), 2)
         mean_val_non_dom = np.round(np.mean(non_dominated), 1)
         std_err_non_dom = np.round(np.std(non_dominated) / np.sqrt(len(non_dominated)), 2)
+        mean_val_non_dom_perc = np.round(np.mean(non_dominated_perc), 5)
+        std_err_non_dom_perc = np.round(np.std(non_dominated_perc) / np.sqrt(len(non_dominated_perc)), 2)
 
-        df = df.append({
-            "Setting": env,
-            "Model": model,
-            "Uniques": f"{mean_val_uniques} (+-{std_err_uniques})",
-            "Non-Dominated": f"{mean_val_non_dom} (+-{std_err_non_dom})"
-        },
-                       ignore_index=True)
+        df = df.append(
+            {
+                "Setting": env,
+                "Model": model,
+                "Uniques": f"{mean_val_uniques} (+-{std_err_uniques})",
+                "Non-Dominated": f"{mean_val_non_dom} (+-{std_err_non_dom})",
+                "Non-Dominated %": f"{mean_val_non_dom_perc} (+-{std_err_non_dom_perc})"
+            },
+            ignore_index=True)
 
     df['Setting'] = pd.Categorical(df["Setting"], ENVS)
     df['Model'] = pd.Categorical(df["Model"], MODELS)
@@ -270,10 +273,12 @@ def load_csv(path: str) -> pd.DataFrame:
 
 
 def plot_training_history(path: Path, model: str, env: str) -> None:
-    exp_dirs =  ["-".join((model, env, "replication" + train_id)) for train_id in ["", "-1", "-2", "-3", "-4", "-5"]]
+    exp_dirs = [
+        "-".join((model, env, "replication" + train_id)) for train_id in ["", "-1", "-2", "-3", "-4", "-5"]
+    ]
     plt.figure(figsize=(25, 10))
     for i in range(6):
-        plt.subplot(2, 3, i+1)
+        plt.subplot(2, 3, i + 1)
         image_path = path.joinpath(exp_dirs[i], "plots", "reward_plot.png")
         img = mpimg.imread(image_path)
         plt.imshow(img)
@@ -318,14 +323,16 @@ ALL_SETTINGS = set(ENVS)
 CUMULATIVE_SETTINGS = set([env for env in ENVS if "Cumulative Rewards" in env])
 
 DUAL_THRESHOLD_SETTINGS = set([
-    "{}{}{}Dual Threshold".format("Cumulative Rewards " * cum_env, SAMPLINGS_DICT[sampling], "Linear to " * lin_thresh)
+    "{}{}{}Dual Threshold".format("Cumulative Rewards " * cum_env, SAMPLINGS_DICT[sampling],
+                                  "Linear to " * lin_thresh)
     for lin_thresh in LINEAR_THRESHOLDS
     for sampling in SAMPLINGS
     for cum_env in CUM_ENVS
 ])
 
 LINEAR_DUAL_THRESHOLD_SETTINGS = set([
-    "{}{}{}Linear Dual Threshold".format("Cumulative Rewards " * cum_env, SAMPLINGS_DICT[sampling], "Linear to " * lin_thresh)
+    "{}{}{}Linear Dual Threshold".format("Cumulative Rewards " * cum_env, SAMPLINGS_DICT[sampling],
+                                         "Linear to " * lin_thresh)
     for lin_thresh in LINEAR_THRESHOLDS
     for sampling in SAMPLINGS
     for cum_env in CUM_ENVS
@@ -338,14 +345,16 @@ LINEAR_SETTINGS = set([
 ])
 
 THRESHOLD_SETTINGS = set([
-    "{}{}{}Threshold".format("Cumulative Rewards " * cum_env, SAMPLINGS_DICT[sampling], "Linear to " * lin_thresh)
+    "{}{}{}Threshold".format("Cumulative Rewards " * cum_env, SAMPLINGS_DICT[sampling],
+                             "Linear to " * lin_thresh)
     for lin_thresh in LINEAR_THRESHOLDS
     for sampling in SAMPLINGS
     for cum_env in CUM_ENVS
 ])
 
 LINEAR_THRESHOLD_SETTINGS = set([
-    "{}{}{}Linear Threshold".format("Cumulative Rewards " * cum_env, SAMPLINGS_DICT[sampling], "Linear to " * lin_thresh)
+    "{}{}{}Linear Threshold".format("Cumulative Rewards " * cum_env, SAMPLINGS_DICT[sampling],
+                                    "Linear to " * lin_thresh)
     for lin_thresh in LINEAR_THRESHOLDS
     for sampling in SAMPLINGS
     for cum_env in CUM_ENVS
@@ -355,7 +364,7 @@ TARGET_SETTINGS = {'Cumulative Rewards Target', 'Target'}
 
 LINEAR_TO_SETTINGS = set([
     "{}{}Linear to {}".format("Cumulative Rewards " * cum_env, SAMPLINGS_DICT[sampling],
-                      UTILITIES_DICT[utility])
+                              UTILITIES_DICT[utility])
     for utility in ["linear", "threshold", "linear_threshold", "dual_threshold", "linear_dual_threshold"]
     for sampling in SAMPLINGS
     for cum_env in CUM_ENVS
