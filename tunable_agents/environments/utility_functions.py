@@ -24,6 +24,15 @@ class UtilityFunction(ABC):
         self._interests = interests
 
     def __call__(self, rewards: np.ndarray) -> np.ndarray:
+        """Calls the underlying utility function implementation.
+        Must support batch computation.
+
+        Args:
+            rewards (np.ndarray): numpy array of reward vectors, can be either 1D or 2D with shape (B, N)
+
+        Returns:
+            np.ndarray: scalar utility value for the rewards.
+        """
         return self.call(rewards)
 
     @abstractmethod
@@ -65,7 +74,7 @@ class LinearUtility(UtilityFunction):
         super().__init__(utility_repr=weights, agent_utility_repr=agent_utility_repr, interests=interests)
 
     def call(self, rewards: np.ndarray) -> np.ndarray:
-        return np.dot(rewards, self._weights)
+        return np.sum(rewards*self._weights, axis=-1)
 
 
 class ThresholdUtility(UtilityFunction):
@@ -98,7 +107,7 @@ class ThresholdUtility(UtilityFunction):
                          interests=interests)
 
     def call(self, rewards: np.ndarray) -> np.ndarray:
-        return np.sum(np.where(rewards >= self._thresholds, rewards * self._coefficients, 0))
+        return np.sum(np.where(rewards >= self._thresholds, rewards * self._coefficients, 0), axis=-1)
 
 
 class DualThresholdUtility(UtilityFunction):
@@ -134,7 +143,8 @@ class DualThresholdUtility(UtilityFunction):
     def call(self, rewards: np.ndarray) -> np.ndarray:
         return np.sum(
             np.where(rewards <= self._dual_thresholds, rewards * self._coefficients,
-                     self._dual_thresholds * self._coefficients))
+                     self._dual_thresholds * self._coefficients),
+            axis=-1)
 
 
 class TargetUtility(UtilityFunction):
@@ -166,7 +176,8 @@ class TargetUtility(UtilityFunction):
         # MOGridworld class) and time and wall penalties are 1 per time step, so the translation ought to be
         # of 31.
         return np.min(
-            (rewards * [-1, -1, 1, 1, 1, 1] + [31, 31, 0, 0, 0, 0] + np.finfo(np.float32).eps) / self._target)
+            (rewards * [-1, -1, 1, 1, 1, 1] + [31, 31, 0, 0, 0, 0] + np.finfo(np.float32).eps) / self._target,
+            axis=-1)
 
 
 def sample_linear_weights(sampling: str = DEFAULT_SAMPLING) -> np.ndarray:
