@@ -123,12 +123,9 @@ def load_results(path: Path) -> Dict[str, np.ndarray]:
 
 
 def convert_to_latex(df: pd.DataFrame) -> str:
-    models = ["Tiny", "Small", "Medium", "Large"]
     latex_output = ""
-    i = 0
     for row in df.iterrows():
-        latex_output += models[i] + " &"
-        i += 1
+        latex_output += row[0].replace("Cumulative Rewards", "Cum. Rew.") + " &"
         for cell in row[1].values:
             mean, std = cell.split(" ")
             latex_output += " " + mean + " "
