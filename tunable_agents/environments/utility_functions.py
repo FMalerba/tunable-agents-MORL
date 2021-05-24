@@ -314,7 +314,7 @@ def sample_linear_dual_thresholds(sampling: str = DEFAULT_SAMPLING) -> np.ndarra
         return sample_linear_dual_thresholds(sampling=sampling)
 
     w01 = np.array([-1, -5], dtype=np.float32)
-    return np.array([[31, 31, 31, 31, 31, 31], np.concatenate((w01, coefficients))], dtype=np.float32)
+    return np.array([[31, 31, 3, 3, 3, 3], np.concatenate((w01, coefficients))], dtype=np.float32)
 
 
 def sample_target() -> np.ndarray:

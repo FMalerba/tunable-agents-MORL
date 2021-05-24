@@ -145,7 +145,7 @@ def utility_list(utility_type: str):
     elif utility_type == "linear_dual_threshold":
         return [
             DualThresholdUtility(dual_thresholds_and_coefficients=np.array(
-                [[31, 31, 31, 31, 31, 31], [-1, -5, r0, r1, r2, r3]], dtype=np.float32))
+                [[31, 31, 3, 3, 3, 3], [-1, -5, r0, r1, r2, r3]], dtype=np.float32))
             for r0 in np.arange(-20, 21, step=2) for r1 in np.arange(-20, 21, step=2)
             for r2 in np.arange(-20, 21, step=2)
             for r3 in np.arange(-20, 21, step=2)
