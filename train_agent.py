@@ -32,7 +32,7 @@ def collection_step(env: py_environment.PyEnvironment, tf_agent: agent.DQNAgent,
         episode_reward = 0
         done = False
         while not done:
-            action = tf_agent.epsilon_greedy_policy(observations)
+            action = tf_agent.epsilon_greedy_policy(observations, training=True)
             ts = env.step(action)
             next_obs, reward, done = ts.observation, ts.reward, ts.is_last()
 

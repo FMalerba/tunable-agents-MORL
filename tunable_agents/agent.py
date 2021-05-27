@@ -138,7 +138,7 @@ class DQNAgent:
     def update_target_model(self) -> None:
         self._target_model.set_weights(self._model.get_weights())
 
-    def epsilon_greedy_policy(self, observations: Observation) -> int:
+    def epsilon_greedy_policy(self, observations: Observation, training: bool=False) -> int:
         """
         Select greedy action from model output based on current state with 
         probability epsilon. With probability 1 - epsilon select random action.
@@ -146,15 +146,15 @@ class DQNAgent:
         if np.random.rand() < self._epsilon():
             return np.random.choice(self._output_size)
         else:
-            return self.greedy_policy(observations=observations)
+            return self.greedy_policy(observations=observations, training=training)
 
-    def greedy_policy(self, observations: Observation) -> int:
+    def greedy_policy(self, observations: Observation, training: bool=False) -> int:
         """
         Select greedy action from model output based on current state.
         """
         Q_values = self._model(
             [observations["state_obs"][np.newaxis]] +
-            [observations[key][np.newaxis] for key in sorted(observations.keys() - ["state_obs"])])
+            [observations[key][np.newaxis] for key in sorted(observations.keys() - ["state_obs"])], training=training)
         return np.argmax(Q_values)
 
     def training_step(self, experiences):
