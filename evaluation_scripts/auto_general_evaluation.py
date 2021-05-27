@@ -182,6 +182,8 @@ def main(_):
             continue  # Can't evaluate a non threshold agent on threshold utilities.
         if sampling and "target" in env_type:
             continue  # Can't select sampling for target utility function.
+        if (not lin_thresh) and ("linear_threshold" in env_type or "linear_dual_threshold" in env_type):
+            continue  # Can't sample out of distribution for a linear (dual) threshold agent.
 
         experiment_dir = os.path.join(FLAGS.root_dir, "-".join([model, env_type, training_id]))
         model_path = os.path.join(experiment_dir, 'model', 'dqn_model.h5')
