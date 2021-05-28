@@ -5,7 +5,7 @@ import gin
 
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras.layers import Input, Concatenate
+from tensorflow.keras.layers import Input, Concatenate      #pylint: disable=no-name-in-module
 from tf_agents.typing.types import ArraySpec
 from collections import deque  # Used for replay buffer and reward tracking
 
