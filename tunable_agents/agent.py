@@ -130,7 +130,7 @@ class DQNAgent:
         model = keras.Model(inputs=[image_input] + additional_inputs, outputs=outputs)
 
         # Define optimizer and loss function
-        self._optimizer = keras.optimizers.Adam(lr=self._learning_rate)
+        self._optimizer = keras.optimizers.Adam(learning_rate=self._learning_rate)
         self._loss_fn = keras.losses.mean_squared_error
 
         return model
