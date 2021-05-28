@@ -186,7 +186,7 @@ class GatheringWrapper(py_environment.PyEnvironment):
         if self._env.step_count > self._env.max_steps:
             return True
 
-        if self._utility_type in ["target", "dual_threshold"]:
+        if self._utility_type in ["target", "dual_threshold", "linear_dual_threshold"]:
             interests = self._interests - self._cumulative_rewards
         else:
             interests = self._interests
