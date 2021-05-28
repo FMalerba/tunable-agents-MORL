@@ -83,7 +83,7 @@ class DQNAgent:
                  epsilon: Callable[[], float],
                  obs_spec: Dict[str, ArraySpec],
                  learning_rate: float = 1e-4,
-                 gamma: float = 0.99,
+                 gamma: float = 1,
                  **build_model_kwargs):
         """Creates a DQN Agent with a near-arbitrary underlying model.
 
@@ -94,7 +94,7 @@ class DQNAgent:
                         modify it's output via persistent objects like Tensors).
             obs_spec (Dict[str, ArraySpec]): Observation spec used to build the various inputs to the model.
             learning_rate (float, optional): Learning rate for the Adam optimizer. Defaults to 1e-4.
-            gamma (float, optional): Gamma value to be used for discounted rewards. Defaults to 0.99.
+            gamma (float, optional): Gamma value to be used for discounted rewards. Defaults to 1.
         """
         self._epsilon = epsilon
         self._obs_spec = obs_spec

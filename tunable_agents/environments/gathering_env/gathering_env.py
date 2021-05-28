@@ -84,7 +84,7 @@ class GatheringWrapper(py_environment.PyEnvironment):
 
     def __init__(self,
                  cumulative_rewards_flag: bool = False,
-                 gamma: float = 0.99,
+                 gamma: float = 1,
                  history_size: int = 3,
                  utility_repr: np.ndarray = None,
                  utility_type: str = 'linear',
