@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Callable, Dict, List, Tuple
+from typing import Callable, Dict, List
 
 import gin
 
@@ -85,6 +85,17 @@ class DQNAgent:
                  learning_rate: float = 1e-4,
                  gamma: float = 0.99,
                  **build_model_kwargs):
+        """Creates a DQN Agent with a near-arbitrary underlying model.
+
+        Args:
+            epsilon (Callable[[], float]): Epsilon to be used for the epsilon-greedy policy.
+                        Note that this should be a callable that takes no argument and returns the epsilon
+                        to be used at that point in time. (a callable that receives no argument could still
+                        modify it's output via persistent objects like Tensors).
+            obs_spec (Dict[str, ArraySpec]): Observation spec used to build the various inputs to the model.
+            learning_rate (float, optional): Learning rate for the Adam optimizer. Defaults to 1e-4.
+            gamma (float, optional): Gamma value to be used for discounted rewards. Defaults to 0.99.
+        """
         self._epsilon = epsilon
         self._obs_spec = obs_spec
         self._learning_rate = learning_rate  # Learning rate
