@@ -175,9 +175,9 @@ class TargetUtility(UtilityFunction):
         # Episode length is 31 (this is due to unexpected and poorly executed behaviour for the underlying
         # MOGridworld class) and time and wall penalties are 1 per time step, so the translation ought to be
         # of 31.
-        return np.min(
-            (rewards * [-1, -1, 1, 1, 1, 1] + [31, 31, 0, 0, 0, 0] + np.finfo(np.float32).eps) / self._target,
-            axis=-1)
+        return np.min(np.where(self._target > 0,
+                               (rewards * [-1, -1, 1, 1, 1, 1] + [31, 31, 0, 0, 0, 0]) / self._target, np.inf),
+                      axis=-1)
 
 
 def sample_linear_weights(sampling: str = DEFAULT_SAMPLING) -> np.ndarray:
