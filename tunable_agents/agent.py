@@ -123,22 +123,23 @@ class DQNAgent:
                     
         The arguments are provided via Gin Config usually.
         """
-        x = image_input = Input(shape=self._obs_spec["state_obs"].shape, name="state_obs")
+        inputs = [
+            Input(shape=self._obs_spec[key].shape, name=key)
+            for key in sorted(self._obs_spec.keys())
+        ]
+        state_obs_index = sorted(self._obs_spec.keys()).index("state_obs")
+        x = inputs[state_obs_index]
         for layer in image_preprocessing_layers:
             x = layer(x)
 
-        additional_inputs = [
-            Input(shape=self._obs_spec[key].shape, name=key)
-            for key in sorted(self._obs_spec.keys() - ["state_obs"])
-        ]
-        x = Concatenate()([x] + additional_inputs)
+        x = Concatenate()([x] + inputs[:state_obs_index] + inputs[state_obs_index+1:])
 
         for layer in postprocessing_layers:
             x = layer(x)
 
         outputs = x
 
-        model = keras.Model(inputs=[image_input] + additional_inputs, outputs=outputs)
+        model = keras.Model(inputs=inputs, outputs=outputs)
 
         # Define optimizer and loss function
         self._optimizer = keras.optimizers.Adam(learning_rate=self._learning_rate)
@@ -163,9 +164,8 @@ class DQNAgent:
         """
         Select greedy action from model output based on current state.
         """
-        Q_values = self._model(
-            [observations["state_obs"][np.newaxis]] +
-            [observations[key][np.newaxis] for key in sorted(observations.keys() - ["state_obs"])], training=training)
+        Q_values = self._model([observations[key][np.newaxis] for key in sorted(observations.keys())],
+                               training=training)
         return np.argmax(Q_values)
 
     def training_step(self, experiences):
@@ -179,9 +179,7 @@ class DQNAgent:
         states, actions, rewards, next_states, dones = experiences
 
         # Compute target Q values from 'next_states'
-        next_Q_values = self._target_model(
-            [next_states["state_obs"]] +
-            [next_states[key] for key in sorted(next_states.keys() - ["state_obs"])])
+        next_Q_values = self._target_model([next_states[key] for key in sorted(next_states.keys())])
 
         max_next_Q_values = np.max(next_Q_values, axis=1)
         target_Q_values = (rewards + (1 - dones) * self._gamma * max_next_Q_values)
@@ -191,8 +189,7 @@ class DQNAgent:
         mask = tf.one_hot(actions, self._output_size)  #pylint: disable=no-value-for-parameter
         # Compute loss and gradient for predictions on 'states'
         with tf.GradientTape() as tape:
-            all_Q_values = self._model([states["state_obs"]] +
-                                       [states[key] for key in sorted(states.keys() - ["state_obs"])],
+            all_Q_values = self._model([states[key] for key in sorted(states.keys())],
                                        training=True)
             Q_values = tf.reduce_sum(all_Q_values * mask, axis=1, keepdims=True)
             loss = tf.reduce_mean(self._loss_fn(target_Q_values, Q_values))
