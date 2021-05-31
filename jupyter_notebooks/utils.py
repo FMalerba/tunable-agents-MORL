@@ -1,3 +1,4 @@
+from collections import defaultdict
 import gin
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
@@ -13,7 +14,7 @@ from tunable_agents.agent import DQNAgent
 from tunable_agents.environments.utility_functions import DualThresholdUtility, LinearUtility, TargetUtility, ThresholdUtility, UtilityFunction
 
 from tqdm import tqdm
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 UTILITIES_DICT = {
     "dual_threshold": "Dual Threshold",
@@ -122,11 +123,19 @@ def load_results(path: Path) -> Dict[str, np.ndarray]:
     return results
 
 
-def convert_to_latex(df: pd.DataFrame) -> str:
-    latex_output = ""
+def convert_to_latex(df: pd.DataFrame) -> None:
+    """Converts the given pandas DataFrame to a latex code representation. Simply prints the output.
+
+    Args:
+        df (pd.DataFrame): Dataframe to be transformed.
+    """
     for row in df.iterrows():
+        latex_output = ""
         latex_output += row[0].replace("Cumulative Rewards", "Cum. Rew.") + " &"
         for cell in row[1].values:
+            if type(cell) != str:
+                print(cell)
+                continue
             mean, std = cell.split(" ")
             latex_output += " " + mean + " "
             std = std.replace("+-", "$\pm$")
@@ -134,8 +143,7 @@ def convert_to_latex(df: pd.DataFrame) -> str:
             latex_output += "&"
         latex_output = latex_output[:-1]
         latex_output += "\\\\"
-
-    return latex_output
+        print(latex_output)
 
 
 def load_reward_vector_results(path: Path) -> Dict[str, np.ndarray]:
@@ -183,7 +191,7 @@ def match_utility_to_fixed_env(env: str) -> List[UtilityFunction]:
 def domination_metric(u: np.ndarray, v: np.ndarray) -> float:
     """Used to compute whether the reward vector u dominates v, viceversa, or neither.
     Do note that this is not a metric in the mathematical sense of the word, but this
-    is not a hinderance to its use in the context in which it is used.
+    is not a hindrance to its use in the context in which it is used.
 
     Args:
         u (np.ndarray): Cumulative reward vector at the end of one episode
@@ -223,21 +231,91 @@ def compute_non_dominated(unique: np.ndarray) -> np.ndarray:
     return is_non_dominated
 
 
-def check_correct_non_dominated(env: str, unique:np.ndarray, inverse: np.ndarray, is_non_dominated: np.ndarray) -> np.ndarray:
+def compute_correct_non_dominated_ratio(env: str, unique: np.ndarray, inverse: np.ndarray,
+                                        is_non_dominated: np.ndarray) -> float:
+    """Computes the proportion of times (among the non dominated episodes) that the agent selected the most
+    appropriate non-dominated end-of-episode cumulative reward vectors for the specific utility function
+    of that episode.
+
+    Args:
+        env (str): Identifyier for the environment. Used to collect the utility functions that were used
+                during evaluation.
+        unique (np.ndarray): Matrix of unique end-of-episode CRVs that were reached by the agent during
+                evaluation.
+        inverse (np.ndarray): Output of np.unique that allows to reconstruct the original matrix of all the
+                end-of-episode CRVs reached.
+        is_non_dominated (np.ndarray): Boolean array that identifies non-dominated vectors among those contained
+                in the argument unique.
+
+    Returns:
+        float: Proportion of times that the correct non-dominated vector was chosen.
+    """
     non_dom_indices = np.argwhere(is_non_dominated)
     non_dom_vectors = unique[is_non_dominated]
     indices_to_test = np.isin(inverse, non_dom_indices)
-    
+
     utility_functions = match_utility_to_fixed_env(env=env)
-    assert inverse.shape[0] == len(utility_functions), (inverse.shape[0], len(utility_functions))
+
     utility_functions_to_test = [f for i, f in enumerate(utility_functions) if indices_to_test[i]]
     original_inputs = unique[inverse[indices_to_test]][:, np.newaxis]
     competitors = np.repeat(non_dom_vectors[np.newaxis], np.sum(indices_to_test, dtype=int), axis=0)
-    test_inputs = np.concatenate((original_inputs, competitors), axis=1)
-    assert len(utility_functions_to_test) == test_inputs.shape[0]
-    outputs = np.array([f(x) for f, x in zip(utility_functions_to_test, test_inputs)])
-    assert outputs.shape == test_inputs.shape[:-1], (outputs.shape, test_inputs.shape[:-1], env)
+    inputs = np.concatenate((original_inputs, competitors), axis=1)
+
+    outputs = np.array([f(x) for f, x in zip(utility_functions_to_test, inputs)])
+
     return np.mean(np.argmax(outputs, axis=1) == 0)
+
+
+def update_overall_non_dominated(overall_non_dominated: Optional[np.ndarray],
+                                 non_dominated_candidates: np.ndarray) -> np.ndarray:
+    """Computes the new matrix of overall non-dominated vectors after having assimilated
+    non_dominated_candidates into overall_non_dominated.
+
+    Args:
+        overall_non_dominated (Optional[np.ndarray]): Current matrix of overall non-dominated candidates.
+        non_dominated_candidates (np.ndarray): Matrix of non-dominated vectors for a specific agent that
+            are to be assimilated
+
+    Returns:
+        np.ndarray: New matrix of overall non-dominated vectors
+    """
+    if overall_non_dominated is None:
+        return non_dominated_candidates
+
+    output = np.unique(np.concatenate((overall_non_dominated, non_dominated_candidates), axis=0), axis=0)
+    output = output[compute_non_dominated(output * [-1, -1, 1, 1, 1, 1])]
+    return output
+
+
+def generate_row(env: str, model: str, uniques_shapes: List[float], non_dominated: List[float],
+                 non_dominated_perc: List[float], correct_non_dom: Optional[List[float]]) -> Dict[str, str]:
+    """
+    Generates a row of the uniques_non_dom_table with the given inputs.
+    """
+    mean_val_uniques = np.round(np.mean(uniques_shapes), 1)
+    std_err_uniques = np.round(np.std(uniques_shapes) / np.sqrt(len(uniques_shapes)), 1)
+
+    mean_val_non_dom = np.round(np.mean(non_dominated), 1)
+    std_err_non_dom = np.round(np.std(non_dominated) / np.sqrt(len(non_dominated)), 1)
+
+    mean_val_non_dom_perc = np.round(np.mean(non_dominated_perc) * 100, 1)
+    std_err_non_dom_perc = np.round(np.std(np.array(non_dominated_perc) * 100) / np.sqrt(len(non_dominated_perc)), 1)
+
+    if correct_non_dom is not None:
+        mean_val_correct_non_dom = np.round(np.mean(correct_non_dom) * 100, 1)
+        std_err_correct_non_dom = np.round(np.std(np.array(correct_non_dom) * 100) / np.sqrt(len(correct_non_dom)), 1)
+
+    row = {
+        "Setting": env,
+        "Model": model,
+        "Uniques": f"{mean_val_uniques} (+-{std_err_uniques})",
+        "Non-Dominated": f"{mean_val_non_dom} (+-{std_err_non_dom})",
+        "Non-Dominated %": f"{mean_val_non_dom_perc} (+-{std_err_non_dom_perc})"
+    }
+    if correct_non_dom is not None:
+        row["Correct Non-Dominated"] = f"{mean_val_correct_non_dom} (+-{std_err_correct_non_dom})"
+    
+    return row
 
 
 def wds_tables(results: Dict[str, List[np.ndarray]]) -> Tuple[pd.DataFrame]:
@@ -303,55 +381,61 @@ def utilities_table(results: Dict[str, List[np.ndarray]]) -> pd.DataFrame:
     return df
 
 
-def uniques_non_dom_table(results: Dict[str, List[np.ndarray]],
-                          correct_non_dom_flag: bool = True) -> pd.DataFrame:
+def uniques_non_dom_table(results: Dict[str, List[np.ndarray]], fixed_env_flag: bool = True) -> pd.DataFrame:
     keys = sorted(results.keys(), key=sorting)
-    df = pd.DataFrame(
-        columns=["Setting", "Model", "Uniques", "Non-Dominated", "Non-Dominated %"] + ["Correct Non-Dominated"]*correct_non_dom_flag)
+    df = pd.DataFrame(columns=["Setting", "Model", "Uniques", "Non-Dominated", "Non-Dominated %"] +
+                      ["Correct Non-Dominated", "Overall Non-Dominated"] * fixed_env_flag)
 
+    per_agent_non_dominated = defaultdict(list)
+    overall_non_dominated = None
     for key in tqdm(keys):
         env, model = key.split("-")
 
-        uniques_inverse_counts = [np.unique(result, axis=0, return_inverse=True, return_counts=True)
-                                  for result in results[key]]
+        uniques_inverse_counts = [
+            np.unique(result, axis=0, return_inverse=True, return_counts=True) for result in results[key]
+        ]
 
         non_dominated = []
         non_dominated_perc = []
         correct_non_dom = []
         for unique, inverse, counts in uniques_inverse_counts:
             is_non_dominated = compute_non_dominated(unique=unique * [-1, -1, 1, 1, 1, 1])
-            if correct_non_dom_flag:
-                correct_non_dom.append(check_correct_non_dominated(env=env, unique=unique, inverse=inverse,
-                                                                   is_non_dominated=is_non_dominated))
+            if fixed_env_flag:
+                per_agent_non_dominated[key].append(unique[is_non_dominated])
+                overall_non_dominated = update_overall_non_dominated(
+                    overall_non_dominated=overall_non_dominated,
+                    non_dominated_candidates=unique[is_non_dominated])
+                correct_non_dom.append(
+                    compute_correct_non_dominated_ratio(env=env,
+                                                        unique=unique,
+                                                        inverse=inverse,
+                                                        is_non_dominated=is_non_dominated))
+
             non_dominated_perc.append(np.sum(counts[is_non_dominated]) / np.sum(counts))
             non_dominated.append(np.sum(is_non_dominated))
 
         uniques_shapes = [unique.shape[0] for unique, inverse, counts in uniques_inverse_counts]
-        
-        mean_val_uniques = np.round(np.mean(uniques_shapes), 1)
-        std_err_uniques = np.round(np.std(uniques_shapes) / np.sqrt(len(uniques_shapes)), 2)
-        
-        mean_val_non_dom = np.round(np.mean(non_dominated), 1)
-        std_err_non_dom = np.round(np.std(non_dominated) / np.sqrt(len(non_dominated)), 2)
-        
-        mean_val_non_dom_perc = np.round(np.mean(non_dominated_perc), 2)
-        std_err_non_dom_perc = np.round(np.std(non_dominated_perc) / np.sqrt(len(non_dominated_perc)), 2)
-        
-        if correct_non_dom_flag:
-            mean_val_correct_non_dom = np.round(np.mean(correct_non_dom), 2)
-            std_err_correct_non_dom = np.round(np.std(correct_non_dom) / np.sqrt(len(correct_non_dom)), 2)
 
-        row = {
-            "Setting": env,
-            "Model": model,
-            "Uniques": f"{mean_val_uniques} (+-{std_err_uniques})",
-            "Non-Dominated": f"{mean_val_non_dom} (+-{std_err_non_dom})",
-            "Non-Dominated %": f"{mean_val_non_dom_perc} (+-{std_err_non_dom_perc})"
-            }
-        if correct_non_dom_flag:
-            row["Correct Non-Dominated"] = f"{mean_val_correct_non_dom} (+-{std_err_correct_non_dom})"
+        row = generate_row(env=env,
+                           model=model,
+                           uniques_shapes=uniques_shapes,
+                           non_dominated=non_dominated,
+                           non_dominated_perc=non_dominated_perc,
+                           correct_non_dom=correct_non_dom if fixed_env_flag else None)
         df = df.append(row, ignore_index=True)
 
+    if fixed_env_flag:
+        print(overall_non_dominated)
+        for key in tqdm(keys):
+            env, model = key.split("-")
+            
+            values = [np.mean(np.isin(non_dom, overall_non_dominated)) for non_dom in per_agent_non_dominated[key]]
+            
+            mean = np.round(np.mean(values) * 100, 1)
+            std_err = np.round(np.std(np.array(values) * 100) / np.sqrt(len(values)), 1)
+            
+            df.loc[(df["Model"] == model) & (df["Setting"] == env), "Overall Non-Dominated"] = f"{mean} (+-{std_err})"
+    
     df['Setting'] = pd.Categorical(df["Setting"], ENVS)
     df['Model'] = pd.Categorical(df["Model"], MODELS)
 
@@ -487,7 +571,6 @@ CONTINUOUS_SETTINGS = set([
     for cum_env in CUM_ENVS
     if not (lin_thresh and (not "threshold" in utility))
 ])
-
 
 if __name__ == "__main__":
     results_path = Path("C:/Users/maler/Federico/Università/Master/Tesi/evaluation_results/")
