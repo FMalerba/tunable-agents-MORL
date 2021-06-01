@@ -16,6 +16,8 @@ from tunable_agents.environments.utility_functions import DualThresholdUtility, 
 from tqdm import tqdm
 from typing import Dict, List, Optional, Tuple
 
+ExperimentIdentifier = Tuple[str, str, Path]
+
 UTILITIES_DICT = {
     "dual_threshold": "Dual Threshold",
     "linear": "Linear",
@@ -32,12 +34,8 @@ SAMPLINGS = ["", "dense", "continuous"]
 CUM_ENVS = [False, True]
 ENVS = [
     "{}{}{}{}".format("Cumulative Rewards " * cum_env, SAMPLINGS_DICT[sampling], "Linear to " * lin_thresh,
-                      UTILITIES_DICT[utility])
-    for lin_thresh in LINEAR_THRESHOLDS
-    for utility in UTILITIES
-    for sampling in SAMPLINGS
-    for cum_env in CUM_ENVS
-    if not (lin_thresh and (not "threshold" in utility))
+                      UTILITIES_DICT[utility]) for lin_thresh in LINEAR_THRESHOLDS for utility in UTILITIES
+    for sampling in SAMPLINGS for cum_env in CUM_ENVS if not (lin_thresh and (not "threshold" in utility))
     if not (sampling and ("target" in utility))
 ]
 
@@ -53,72 +51,55 @@ ENV_DICT = dict([("{}{}{}{}env".format("cum_" * cum_env, utility + "_", (samplin
                  if not (lin_thresh and (not "threshold" in utility))
                  if not (sampling and ("target" in utility))])
 
-FIXED_ENV_UTILITIES = {
-    "dual_threshold": [
-        DualThresholdUtility(dual_thresholds_and_coefficients=np.array(
-            [[31, 31, dual_thresh0, dual_thresh1, dual_thresh2, dual_thresh3], [-1, -5, r0, r1, r2, r3]],
-            dtype=np.float32)) for dual_thresh0 in range(3) for dual_thresh1 in range(3)
-        for dual_thresh2 in range(3) for dual_thresh3 in range(3) for r0 in np.arange(-20, 21, step=6)
-        for r1 in np.arange(-20, 21, step=6) for r2 in np.arange(-20, 21, step=6)
-        for r3 in np.arange(-20, 21, step=6)
-        if (r0 > 0) or (r1 > 0) or (r2 > 0) or (r3 > 0)
-    ],
-    "linear_dual_threshold": [
-        DualThresholdUtility(dual_thresholds_and_coefficients=np.array(
-            [[31, 31, 31, 31, 31, 31], [-1, -5, r0, r1, r2, r3]], dtype=np.float32))
-        for r0 in np.arange(-20, 21, step=2) for r1 in np.arange(-20, 21, step=2)
-        for r2 in np.arange(-20, 21, step=2)
-        for r3 in np.arange(-20, 21, step=2)
-        if (r0 > 0) or (r1 > 0) or (r2 > 0) or (r3 > 0)
-    ],
-    "linear": [
-        LinearUtility(weights=np.array([-1, -5, r0, r1, r2, r3], dtype=np.float32))
-        for r0 in np.arange(-20, 21, step=2) for r1 in np.arange(-20, 21, step=2)
-        for r2 in np.arange(-20, 21, step=2)
-        for r3 in np.arange(-20, 21, step=2)
-        if (r0 > 0) or (r1 > 0) or (r2 > 0) or (r3 > 0)
-    ],
-    "threshold": [
-        ThresholdUtility(thresholds_and_coefficients=np.array(
-            [[0, 0, thresh0, thresh1, thresh2, thresh3], [-1, -5, r0, r1, r2, r3]], dtype=np.float32))
-        for thresh0 in range(3) for thresh1 in range(3) for thresh2 in range(3) for thresh3 in range(3)
-        for r0 in np.arange(-20, 21, step=6) for r1 in np.arange(-20, 21, step=6)
-        for r2 in np.arange(-20, 21, step=6)
-        for r3 in np.arange(-20, 21, step=6)
-        if (r0 > 0) or (r1 > 0) or (r2 > 0) or (r3 > 0)
-    ],
-    "linear_threshold": [
-        ThresholdUtility(thresholds_and_coefficients=np.array([[0, 0, 0, 0, 0, 0], [-1, -5, r0, r1, r2, r3]],
-                                                              dtype=np.float32))
-        for r0 in np.arange(-20, 21, step=2) for r1 in np.arange(-20, 21, step=2)
-        for r2 in np.arange(-20, 21, step=2)
-        for r3 in np.arange(-20, 21, step=2)
-        if (r0 > 0) or (r1 > 0) or (r2 > 0) or (r3 > 0)
-    ],
-    "target": [
-        TargetUtility(target=np.array([31, 31, target0, target1, target2, target3], dtype=np.float32))
-        for target0 in range(4) for target1 in range(4) for target2 in range(3)
-        for target3 in range(4)
-        if (target0 > 0) or (target1 > 0) or (target2 > 0) or (target3 > 0)
-    ]
-}
+
+def experiment_sorting(exp_id: ExperimentIdentifier) -> int:
+    """Defines a consistent sorting between the experiments by using the order in ENVS and MODELS.
+    
+    Usage example:
+        sorted(experiment_list, key=experiment_sorting)
+
+    Args:
+        exp_id (ExperimentIdentifier): Experiment for which the integer key is requested.
+
+    Returns:
+        int: Key of the experiment.
+    """
+    env_sorting = dict([(env, i) for i, env in enumerate(ENVS)])
+    model_sorting = dict([(model, i) for i, model in enumerate(MODELS)])
+
+    env, model = exp_id[:2]
+
+    return env_sorting[env] * (max(model_sorting.values()) + 1) + model_sorting[model]
 
 
-def load_results(path: Path) -> Dict[str, np.ndarray]:
-    keys = set([file.name for file in path.iterdir() if (file.is_dir() and (len(list(file.iterdir())) == 6))])
+def generate_experiments_tuple(path: Path) -> Tuple[ExperimentIdentifier]:
+    experiment_list = []
+    for file in path.iterdir():
+        if (file.is_dir() and (len(list(file.iterdir())) == 6)):
+            env, model = file.name.split("-")[::-1]
+            env = ENV_DICT[env]
+            experiment_list.append((env, model, file))
 
-    results = dict()
-    for key in keys:
-        key_split = key.split("-")[::-1]
-        key_split[0] = ENV_DICT[key_split[0]]
-        new_key = "-".join(key_split)
-        key_folder = path.joinpath(key)
-        if len(list(key_folder.iterdir())) != 6:
-            raise RuntimeError(f"Incomplete results for this experiment: {key_folder}")
-        results[new_key] = [np.load(file, allow_pickle=True) for file in key_folder.iterdir()]
-        sample_sizes = np.array([arr.shape[0] for arr in results[new_key]])
-        if np.any(sample_sizes != sample_sizes[0]):
-            raise RuntimeError(f"Non-matching results for this experiment: {key_folder}")
+    return tuple(sorted(experiment_list, key=experiment_sorting))
+
+
+def load_experiment_results(exp_id: ExperimentIdentifier) -> List[np.ndarray]:
+    """Loads the results for all the runs of a same experiment configuration.
+
+    Args:
+        exp_id (ExperimentIdentifier): Experiment identifier for the experiment configuration to be loaded.
+
+    Raises:
+        RuntimeError: Results from different runs are expected to have sampled the same number of episodes
+            if this is not the case an error is raised.
+
+    Returns:
+        List[np.ndarray]: List of result for every run of the experiment configuration.
+    """
+    results = [np.load(file, allow_pickle=True) for file in exp_id[2].iterdir()]
+    sample_sizes = np.array([arr.shape[0] for arr in results])
+    if np.any(sample_sizes != sample_sizes[0]):
+        raise RuntimeError("Non-matching results for this experiment: {}".format(exp_id[2].name))
 
     return results
 
@@ -131,7 +112,13 @@ def convert_to_latex(df: pd.DataFrame) -> None:
     """
     for row in df.iterrows():
         latex_output = ""
-        latex_output += row[0].replace("Cumulative Rewards", "Cum. Rew.") + " &"
+        #latex_output += row[0].replace("Cumulative Rewards", "Cum. Rew.") + " &"
+        latex_output += ((row[0].replace("Cumulative Rewards", "CR-")
+                                .replace("Linear to", "L-")
+                                .replace("Linear", "L")
+                                .replace("Dual Threshold", "DTh")
+                                .replace("Threshold", "Th")
+                                .replace("Target", "Ta")) + " &")
         for cell in row[1].values:
             if type(cell) != str:
                 print(cell)
@@ -164,16 +151,63 @@ def load_reward_vector_results(path: Path) -> Dict[str, np.ndarray]:
     return results
 
 
-def sorting(key: str) -> int:
-    env_sorting = dict([(env, i) for i, env in enumerate(ENVS)])
-    model_sorting = dict([(model, i) for i, model in enumerate(MODELS)])
-
-    env, model = key.split("-")
-
-    return env_sorting[env] * (max(model_sorting.values()) + 1) + model_sorting[model]
-
-
 def match_utility_to_fixed_env(env: str) -> List[UtilityFunction]:
+    # Initializing FIXED_ENV_UTILITIES is computationally expensive. For faster imports of this module,
+    # this variable is only initialized when necessary.
+    # Defining it as a global variable to avoid reinitializing it on every call of this function.
+    global FIXED_ENV_UTILITIES
+    if "FIXED_ENV_UTILITIES" not in globals():
+        FIXED_ENV_UTILITIES = {
+            "dual_threshold": [
+                DualThresholdUtility(dual_thresholds_and_coefficients=np.array(
+                    [[31, 31, dual_thresh0, dual_thresh1, dual_thresh2, dual_thresh3],
+                     [-1, -5, r0, r1, r2, r3]],
+                    dtype=np.float32)) for dual_thresh0 in range(3) for dual_thresh1 in range(3)
+                for dual_thresh2 in range(3) for dual_thresh3 in range(3) for r0 in np.arange(-20, 21, step=6)
+                for r1 in np.arange(-20, 21, step=6) for r2 in np.arange(-20, 21, step=6)
+                for r3 in np.arange(-20, 21, step=6)
+                if (r0 > 0) or (r1 > 0) or (r2 > 0) or (r3 > 0)
+            ],
+            "linear_dual_threshold": [
+                DualThresholdUtility(dual_thresholds_and_coefficients=np.array(
+                    [[31, 31, 31, 31, 31, 31], [-1, -5, r0, r1, r2, r3]], dtype=np.float32))
+                for r0 in np.arange(-20, 21, step=2) for r1 in np.arange(-20, 21, step=2)
+                for r2 in np.arange(-20, 21, step=2)
+                for r3 in np.arange(-20, 21, step=2)
+                if (r0 > 0) or (r1 > 0) or (r2 > 0) or (r3 > 0)
+            ],
+            "linear": [
+                LinearUtility(weights=np.array([-1, -5, r0, r1, r2, r3], dtype=np.float32))
+                for r0 in np.arange(-20, 21, step=2) for r1 in np.arange(-20, 21, step=2)
+                for r2 in np.arange(-20, 21, step=2)
+                for r3 in np.arange(-20, 21, step=2)
+                if (r0 > 0) or (r1 > 0) or (r2 > 0) or (r3 > 0)
+            ],
+            "threshold": [
+                ThresholdUtility(thresholds_and_coefficients=np.array(
+                    [[0, 0, thresh0, thresh1, thresh2, thresh3], [-1, -5, r0, r1, r2, r3]], dtype=np.float32))
+                for thresh0 in range(3) for thresh1 in range(3) for thresh2 in range(3)
+                for thresh3 in range(3) for r0 in np.arange(-20, 21, step=6)
+                for r1 in np.arange(-20, 21, step=6) for r2 in np.arange(-20, 21, step=6)
+                for r3 in np.arange(-20, 21, step=6)
+                if (r0 > 0) or (r1 > 0) or (r2 > 0) or (r3 > 0)
+            ],
+            "linear_threshold": [
+                ThresholdUtility(thresholds_and_coefficients=np.array(
+                    [[0, 0, 0, 0, 0, 0], [-1, -5, r0, r1, r2, r3]], dtype=np.float32))
+                for r0 in np.arange(-20, 21, step=2) for r1 in np.arange(-20, 21, step=2)
+                for r2 in np.arange(-20, 21, step=2)
+                for r3 in np.arange(-20, 21, step=2)
+                if (r0 > 0) or (r1 > 0) or (r2 > 0) or (r3 > 0)
+            ],
+            "target": [
+                TargetUtility(target=np.array([31, 31, target0, target1, target2, target3], dtype=np.float32))
+                for target0 in range(4) for target1 in range(4) for target2 in range(3)
+                for target3 in range(4)
+                if (target0 > 0) or (target1 > 0) or (target2 > 0) or (target3 > 0)
+            ]
+        }
+
     if env in LINEAR_TO_SETTINGS.intersection(LINEAR_DUAL_THRESHOLD_SETTINGS.union(DUAL_THRESHOLD_SETTINGS)):
         return FIXED_ENV_UTILITIES["linear_dual_threshold"]
     elif env in LINEAR_DUAL_THRESHOLD_SETTINGS.union(DUAL_THRESHOLD_SETTINGS):
@@ -299,11 +333,13 @@ def generate_row(env: str, model: str, uniques_shapes: List[float], non_dominate
     std_err_non_dom = np.round(np.std(non_dominated) / np.sqrt(len(non_dominated)), 1)
 
     mean_val_non_dom_perc = np.round(np.mean(non_dominated_perc) * 100, 1)
-    std_err_non_dom_perc = np.round(np.std(np.array(non_dominated_perc) * 100) / np.sqrt(len(non_dominated_perc)), 1)
+    std_err_non_dom_perc = np.round(
+        np.std(np.array(non_dominated_perc) * 100) / np.sqrt(len(non_dominated_perc)), 1)
 
     if correct_non_dom is not None:
         mean_val_correct_non_dom = np.round(np.mean(correct_non_dom) * 100, 1)
-        std_err_correct_non_dom = np.round(np.std(np.array(correct_non_dom) * 100) / np.sqrt(len(correct_non_dom)), 1)
+        std_err_correct_non_dom = np.round(
+            np.std(np.array(correct_non_dom) * 100) / np.sqrt(len(correct_non_dom)), 1)
 
     row = {
         "Setting": env,
@@ -314,17 +350,86 @@ def generate_row(env: str, model: str, uniques_shapes: List[float], non_dominate
     }
     if correct_non_dom is not None:
         row["Correct Non-Dominated"] = f"{mean_val_correct_non_dom} (+-{std_err_correct_non_dom})"
-    
+
     return row
 
 
-def wds_tables(results: Dict[str, List[np.ndarray]]) -> Tuple[pd.DataFrame]:
-    keys = sorted(results.keys(), key=sorting)
+def uniques_non_dom_table(results_path: Path, fixed_env_flag: bool = True) -> pd.DataFrame:
+    exp_ids = generate_experiments_tuple(results_path)
+    df = pd.DataFrame(columns=["Setting", "Model", "Uniques", "Non-Dominated", "Non-Dominated %"] +
+                      ["Correct Non-Dominated", "Overall Non-Dominated"] * fixed_env_flag)
+
+    per_agent_non_dominated = defaultdict(list)
+    overall_non_dominated = None
+    for exp_id in tqdm(exp_ids):
+        env, model = exp_id[:2]
+
+        uniques_inverse_counts = [
+            np.unique(result, axis=0, return_inverse=True, return_counts=True)
+            for result in load_experiment_results(exp_id)
+        ]
+
+        non_dominated = []
+        non_dominated_perc = []
+        correct_non_dom = []
+        for unique, inverse, counts in uniques_inverse_counts:
+            is_non_dominated = compute_non_dominated(unique=unique * [-1, -1, 1, 1, 1, 1])
+            if fixed_env_flag:
+                per_agent_non_dominated[exp_id].append(unique[is_non_dominated])
+                overall_non_dominated = update_overall_non_dominated(
+                    overall_non_dominated=overall_non_dominated,
+                    non_dominated_candidates=unique[is_non_dominated])
+                correct_non_dom.append(
+                    compute_correct_non_dominated_ratio(env=env,
+                                                        unique=unique,
+                                                        inverse=inverse,
+                                                        is_non_dominated=is_non_dominated))
+
+            non_dominated_perc.append(np.sum(counts[is_non_dominated]) / np.sum(counts))
+            non_dominated.append(np.sum(is_non_dominated))
+
+        uniques_shapes = [unique.shape[0] for unique, inverse, counts in uniques_inverse_counts]
+
+        row = generate_row(env=env,
+                           model=model,
+                           uniques_shapes=uniques_shapes,
+                           non_dominated=non_dominated,
+                           non_dominated_perc=non_dominated_perc,
+                           correct_non_dom=correct_non_dom if fixed_env_flag else None)
+        df = df.append(row, ignore_index=True)
+
+    if fixed_env_flag:
+        print(overall_non_dominated)
+        for exp_id in exp_ids:
+            env, model = exp_id[:2]
+
+            values = [
+                np.mean(np.isin(non_dom, overall_non_dominated))
+                for non_dom in per_agent_non_dominated[exp_id]
+            ]
+
+            mean = np.round(np.mean(values) * 100, 1)
+            std_err = np.round(np.std(np.array(values) * 100) / np.sqrt(len(values)), 1)
+
+            df.loc[(df["Model"] == model) & (df["Setting"] == env),
+                   "Overall Non-Dominated"] = f"{mean} (+-{std_err})"
+
+    df['Setting'] = pd.Categorical(df["Setting"], ENVS)
+    df['Model'] = pd.Categorical(df["Model"], MODELS)
+
+    return df
+
+
+def wds_tables(results_path: Path) -> Tuple[pd.DataFrame]:
+    exp_ids = generate_experiments_tuple(results_path)
+    results = dict([("-".join((exp_id[0], exp_id[1])), load_experiment_results(exp_id)) for exp_id in exp_ids
+                   ])
     intra_wds = pd.DataFrame(columns=["Setting", "Model", "WD"])
     inter_wds = pd.DataFrame(columns=["Setting", "Models", "WD"])
 
-    for key in keys:
-        env, model = key.split("-")
+    for exp_id in exp_ids:
+        env, model = exp_id[:2]
+        key = "-".join((env, model))
         wds = [
             wasserstein_distance(results[key][i], results[key][j])
             for i in range(len(results[key]))
@@ -335,9 +440,9 @@ def wds_tables(results: Dict[str, List[np.ndarray]]) -> Tuple[pd.DataFrame]:
         val = f"{mean_wd} (+-{std_err})"
         intra_wds = intra_wds.append({"Setting": env, "Model": model, "WD": val}, ignore_index=True)
 
-    for i in range(len(keys)):
-        for j in range(i + 1, len(keys)):
-            key_1, key_2 = keys[i], keys[j]
+    for i in range(len(exp_ids)):
+        for j in range(i + 1, len(exp_ids)):
+            key_1, key_2 = "-".join(exp_ids[i][:2]), "-".join(exp_ids[j][:2])
             if key_1.split("-")[0] == key_2.split("-")[0]:
                 env, model_1 = key_1.split("-")
                 model_2 = key_2.split("-")[1]
@@ -363,79 +468,18 @@ def wds_tables(results: Dict[str, List[np.ndarray]]) -> Tuple[pd.DataFrame]:
     return intra_wds, inter_wds
 
 
-def utilities_table(results: Dict[str, List[np.ndarray]]) -> pd.DataFrame:
-    keys = sorted(results.keys(), key=sorting)
+def utilities_table(results_path: Path) -> pd.DataFrame:
+    exp_ids = generate_experiments_tuple(results_path)
     df = pd.DataFrame(columns=["Setting", "Model", "Utility"])
 
-    for key in keys:
-        env, model = key.split("-")
-        res = [np.mean(result) for result in results[key]]
-        mean_util = np.round(np.mean(res), 2)
-        std_err = np.round(np.std(res) / np.sqrt(len(res)), 2)
+    for exp_id in tqdm(exp_ids):
+        env, model = exp_id[:2]
+        res = [np.mean(result) for result in load_experiment_results(exp_id)]
+        mean_util = np.round(np.mean(res), 1)
+        std_err = np.round(np.std(res) / np.sqrt(len(res)), 1)
         val = f"{mean_util} (+-{std_err})"
         df = df.append({"Setting": env, "Model": model, "Utility": val}, ignore_index=True)
 
-    df['Setting'] = pd.Categorical(df["Setting"], ENVS)
-    df['Model'] = pd.Categorical(df["Model"], MODELS)
-
-    return df
-
-
-def uniques_non_dom_table(results: Dict[str, List[np.ndarray]], fixed_env_flag: bool = True) -> pd.DataFrame:
-    keys = sorted(results.keys(), key=sorting)
-    df = pd.DataFrame(columns=["Setting", "Model", "Uniques", "Non-Dominated", "Non-Dominated %"] +
-                      ["Correct Non-Dominated", "Overall Non-Dominated"] * fixed_env_flag)
-
-    per_agent_non_dominated = defaultdict(list)
-    overall_non_dominated = None
-    for key in tqdm(keys):
-        env, model = key.split("-")
-
-        uniques_inverse_counts = [
-            np.unique(result, axis=0, return_inverse=True, return_counts=True) for result in results[key]
-        ]
-
-        non_dominated = []
-        non_dominated_perc = []
-        correct_non_dom = []
-        for unique, inverse, counts in uniques_inverse_counts:
-            is_non_dominated = compute_non_dominated(unique=unique * [-1, -1, 1, 1, 1, 1])
-            if fixed_env_flag:
-                per_agent_non_dominated[key].append(unique[is_non_dominated])
-                overall_non_dominated = update_overall_non_dominated(
-                    overall_non_dominated=overall_non_dominated,
-                    non_dominated_candidates=unique[is_non_dominated])
-                correct_non_dom.append(
-                    compute_correct_non_dominated_ratio(env=env,
-                                                        unique=unique,
-                                                        inverse=inverse,
-                                                        is_non_dominated=is_non_dominated))
-
-            non_dominated_perc.append(np.sum(counts[is_non_dominated]) / np.sum(counts))
-            non_dominated.append(np.sum(is_non_dominated))
-
-        uniques_shapes = [unique.shape[0] for unique, inverse, counts in uniques_inverse_counts]
-
-        row = generate_row(env=env,
-                           model=model,
-                           uniques_shapes=uniques_shapes,
-                           non_dominated=non_dominated,
-                           non_dominated_perc=non_dominated_perc,
-                           correct_non_dom=correct_non_dom if fixed_env_flag else None)
-        df = df.append(row, ignore_index=True)
-
-    if fixed_env_flag:
-        print(overall_non_dominated)
-        for key in tqdm(keys):
-            env, model = key.split("-")
-            
-            values = [np.mean(np.isin(non_dom, overall_non_dominated)) for non_dom in per_agent_non_dominated[key]]
-            
-            mean = np.round(np.mean(values) * 100, 1)
-            std_err = np.round(np.std(np.array(values) * 100) / np.sqrt(len(values)), 1)
-            
-            df.loc[(df["Model"] == model) & (df["Setting"] == env), "Overall Non-Dominated"] = f"{mean} (+-{std_err})"
-    
     df['Setting'] = pd.Categorical(df["Setting"], ENVS)
     df['Model'] = pd.Categorical(df["Model"], MODELS)
 
@@ -575,5 +619,5 @@ CONTINUOUS_SETTINGS = set([
 if __name__ == "__main__":
     results_path = Path("C:/Users/maler/Federico/Università/Master/Tesi/evaluation_results/")
     fixed_env_results_path = results_path.joinpath("fixed_env_results/")
-    fixed_env_results = load_results(fixed_env_results_path)
-    fixed_env_unique_non_dom_table = uniques_non_dom_table(fixed_env_results)
+    fixed_env_unique_non_dom_table = uniques_non_dom_table(results_path=fixed_env_results_path,
+                                                           fixed_env_flag=True)
