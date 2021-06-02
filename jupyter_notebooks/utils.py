@@ -34,8 +34,12 @@ SAMPLINGS = ["", "dense", "continuous"]
 CUM_ENVS = [False, True]
 ENVS = [
     "{}{}{}{}".format("Cumulative Rewards " * cum_env, SAMPLINGS_DICT[sampling], "Linear to " * lin_thresh,
-                      UTILITIES_DICT[utility]) for lin_thresh in LINEAR_THRESHOLDS for utility in UTILITIES
-    for sampling in SAMPLINGS for cum_env in CUM_ENVS if not (lin_thresh and (not "threshold" in utility))
+                      UTILITIES_DICT[utility])
+    for lin_thresh in LINEAR_THRESHOLDS
+    for utility in UTILITIES
+    for sampling in SAMPLINGS
+    for cum_env in CUM_ENVS
+    if not (lin_thresh and (not "threshold" in utility))
     if not (sampling and ("target" in utility))
 ]
 
@@ -162,23 +166,30 @@ def match_utility_to_fixed_env(env: str) -> List[UtilityFunction]:
                 DualThresholdUtility(dual_thresholds_and_coefficients=np.array(
                     [[31, 31, dual_thresh0, dual_thresh1, dual_thresh2, dual_thresh3],
                      [-1, -5, r0, r1, r2, r3]],
-                    dtype=np.float32)) for dual_thresh0 in range(3) for dual_thresh1 in range(3)
-                for dual_thresh2 in range(3) for dual_thresh3 in range(3) for r0 in np.arange(-20, 21, step=6)
-                for r1 in np.arange(-20, 21, step=6) for r2 in np.arange(-20, 21, step=6)
+                    dtype=np.float32))
+                for dual_thresh0 in range(3)
+                for dual_thresh1 in range(3)
+                for dual_thresh2 in range(3)
+                for dual_thresh3 in range(3)
+                for r0 in np.arange(-20, 21, step=6)
+                for r1 in np.arange(-20, 21, step=6)
+                for r2 in np.arange(-20, 21, step=6)
                 for r3 in np.arange(-20, 21, step=6)
                 if (r0 > 0) or (r1 > 0) or (r2 > 0) or (r3 > 0)
             ],
             "linear_dual_threshold": [
                 DualThresholdUtility(dual_thresholds_and_coefficients=np.array(
                     [[31, 31, 31, 31, 31, 31], [-1, -5, r0, r1, r2, r3]], dtype=np.float32))
-                for r0 in np.arange(-20, 21, step=2) for r1 in np.arange(-20, 21, step=2)
+                for r0 in np.arange(-20, 21, step=2)
+                for r1 in np.arange(-20, 21, step=2)
                 for r2 in np.arange(-20, 21, step=2)
                 for r3 in np.arange(-20, 21, step=2)
                 if (r0 > 0) or (r1 > 0) or (r2 > 0) or (r3 > 0)
             ],
             "linear": [
                 LinearUtility(weights=np.array([-1, -5, r0, r1, r2, r3], dtype=np.float32))
-                for r0 in np.arange(-20, 21, step=2) for r1 in np.arange(-20, 21, step=2)
+                for r0 in np.arange(-20, 21, step=2)
+                for r1 in np.arange(-20, 21, step=2)
                 for r2 in np.arange(-20, 21, step=2)
                 for r3 in np.arange(-20, 21, step=2)
                 if (r0 > 0) or (r1 > 0) or (r2 > 0) or (r3 > 0)
@@ -186,23 +197,30 @@ def match_utility_to_fixed_env(env: str) -> List[UtilityFunction]:
             "threshold": [
                 ThresholdUtility(thresholds_and_coefficients=np.array(
                     [[0, 0, thresh0, thresh1, thresh2, thresh3], [-1, -5, r0, r1, r2, r3]], dtype=np.float32))
-                for thresh0 in range(3) for thresh1 in range(3) for thresh2 in range(3)
-                for thresh3 in range(3) for r0 in np.arange(-20, 21, step=6)
-                for r1 in np.arange(-20, 21, step=6) for r2 in np.arange(-20, 21, step=6)
+                for thresh0 in range(3)
+                for thresh1 in range(3)
+                for thresh2 in range(3)
+                for thresh3 in range(3)
+                for r0 in np.arange(-20, 21, step=6)
+                for r1 in np.arange(-20, 21, step=6)
+                for r2 in np.arange(-20, 21, step=6)
                 for r3 in np.arange(-20, 21, step=6)
                 if (r0 > 0) or (r1 > 0) or (r2 > 0) or (r3 > 0)
             ],
             "linear_threshold": [
                 ThresholdUtility(thresholds_and_coefficients=np.array(
                     [[0, 0, 0, 0, 0, 0], [-1, -5, r0, r1, r2, r3]], dtype=np.float32))
-                for r0 in np.arange(-20, 21, step=2) for r1 in np.arange(-20, 21, step=2)
+                for r0 in np.arange(-20, 21, step=2)
+                for r1 in np.arange(-20, 21, step=2)
                 for r2 in np.arange(-20, 21, step=2)
                 for r3 in np.arange(-20, 21, step=2)
                 if (r0 > 0) or (r1 > 0) or (r2 > 0) or (r3 > 0)
             ],
             "target": [
                 TargetUtility(target=np.array([31, 31, target0, target1, target2, target3], dtype=np.float32))
-                for target0 in range(4) for target1 in range(4) for target2 in range(3)
+                for target0 in range(4)
+                for target1 in range(4)
+                for target2 in range(3)
                 for target3 in range(4)
                 if (target0 > 0) or (target1 > 0) or (target2 > 0) or (target3 > 0)
             ]
