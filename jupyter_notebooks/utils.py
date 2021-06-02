@@ -266,7 +266,8 @@ def compute_non_dominated(unique: np.ndarray) -> np.ndarray:
 
 
 def compute_correct_non_dominated_ratio(env: str, unique: np.ndarray, inverse: np.ndarray,
-                                        is_non_dominated: np.ndarray) -> float:
+                                        is_non_dominated: np.ndarray,
+                                        overall_non_dominated: np.ndarray) -> float:
     """Computes the proportion of times (among the non dominated episodes) that the agent selected the most
     appropriate non-dominated end-of-episode cumulative reward vectors for the specific utility function
     of that episode.
@@ -278,21 +279,22 @@ def compute_correct_non_dominated_ratio(env: str, unique: np.ndarray, inverse: n
                 evaluation.
         inverse (np.ndarray): Output of np.unique that allows to reconstruct the original matrix of all the
                 end-of-episode CRVs reached.
-        is_non_dominated (np.ndarray): Boolean array that identifies non-dominated vectors among those contained
-                in the argument unique.
+        is_non_dominated (np.ndarray): boolean array identifyies agent-level non-dominated vectors among the
+                unique ones. 
+        overall_non__dominated (np.ndarray): Matrix of non-dominated vectors over all agents. These are used
+                as competitors for the reward vectors taken by the agents.
 
     Returns:
         float: Proportion of times that the correct non-dominated vector was chosen.
     """
     non_dom_indices = np.argwhere(is_non_dominated)
-    non_dom_vectors = unique[is_non_dominated]
     indices_to_test = np.isin(inverse, non_dom_indices)
 
     utility_functions = match_utility_to_fixed_env(env=env)
 
     utility_functions_to_test = [f for i, f in enumerate(utility_functions) if indices_to_test[i]]
     original_inputs = unique[inverse[indices_to_test]][:, np.newaxis]
-    competitors = np.repeat(non_dom_vectors[np.newaxis], np.sum(indices_to_test, dtype=int), axis=0)
+    competitors = np.repeat(overall_non_dominated[np.newaxis], np.sum(indices_to_test, dtype=int), axis=0)
     inputs = np.concatenate((original_inputs, competitors), axis=1)
 
     outputs = np.array([f(x) for f, x in zip(utility_functions_to_test, inputs)])
@@ -321,8 +323,8 @@ def update_overall_non_dominated(overall_non_dominated: Optional[np.ndarray],
     return output
 
 
-def generate_row(env: str, model: str, uniques_shapes: List[float], non_dominated: List[float],
-                 non_dominated_perc: List[float], correct_non_dom: Optional[List[float]]) -> Dict[str, str]:
+def generate_row(env: str, model: str, uniques_shapes: List[float],
+                 non_dominated: List[float]) -> Dict[str, str]:
     """
     Generates a row of the uniques_non_dom_table with the given inputs.
     """
@@ -332,34 +334,22 @@ def generate_row(env: str, model: str, uniques_shapes: List[float], non_dominate
     mean_val_non_dom = np.round(np.mean(non_dominated), 1)
     std_err_non_dom = np.round(np.std(non_dominated) / np.sqrt(len(non_dominated)), 1)
 
-    mean_val_non_dom_perc = np.round(np.mean(non_dominated_perc) * 100, 1)
-    std_err_non_dom_perc = np.round(
-        np.std(np.array(non_dominated_perc) * 100) / np.sqrt(len(non_dominated_perc)), 1)
-
-    if correct_non_dom is not None:
-        mean_val_correct_non_dom = np.round(np.mean(correct_non_dom) * 100, 1)
-        std_err_correct_non_dom = np.round(
-            np.std(np.array(correct_non_dom) * 100) / np.sqrt(len(correct_non_dom)), 1)
-
     row = {
         "Setting": env,
         "Model": model,
         "Uniques": f"{mean_val_uniques} (+-{std_err_uniques})",
         "Non-Dominated": f"{mean_val_non_dom} (+-{std_err_non_dom})",
-        "Non-Dominated %": f"{mean_val_non_dom_perc} (+-{std_err_non_dom_perc})"
     }
-    if correct_non_dom is not None:
-        row["Correct Non-Dominated"] = f"{mean_val_correct_non_dom} (+-{std_err_correct_non_dom})"
 
     return row
 
 
 def uniques_non_dom_table(results_path: Path, fixed_env_flag: bool = True) -> pd.DataFrame:
     exp_ids = generate_experiments_tuple(results_path)
-    df = pd.DataFrame(columns=["Setting", "Model", "Uniques", "Non-Dominated", "Non-Dominated %"] +
-                      ["Correct Non-Dominated", "Overall Non-Dominated"] * fixed_env_flag)
+    df = pd.DataFrame(columns=["Setting", "Model", "Uniques", "Non-Dominated"] +
+                      ["Non-Dominated %", "Correct Non-Dominated", "Overall Non-Dominated"] * fixed_env_flag)
 
-    per_agent_non_dominated = defaultdict(list)
+    stored_info = defaultdict(list)
     overall_non_dominated = None
     for exp_id in tqdm(exp_ids):
         env, model = exp_id[:2]
@@ -371,48 +361,77 @@ def uniques_non_dom_table(results_path: Path, fixed_env_flag: bool = True) -> pd
 
         non_dominated = []
         non_dominated_perc = []
-        correct_non_dom = []
+        correct_non_dom_perc = []
         for unique, inverse, counts in uniques_inverse_counts:
             is_non_dominated = compute_non_dominated(unique=unique * [-1, -1, 1, 1, 1, 1])
             if fixed_env_flag:
-                per_agent_non_dominated[exp_id].append(unique[is_non_dominated])
+                stored_info[exp_id].append((unique, inverse, counts, is_non_dominated))
                 overall_non_dominated = update_overall_non_dominated(
                     overall_non_dominated=overall_non_dominated,
                     non_dominated_candidates=unique[is_non_dominated])
-                correct_non_dom.append(
-                    compute_correct_non_dominated_ratio(env=env,
-                                                        unique=unique,
-                                                        inverse=inverse,
-                                                        is_non_dominated=is_non_dominated))
 
-            non_dominated_perc.append(np.sum(counts[is_non_dominated]) / np.sum(counts))
             non_dominated.append(np.sum(is_non_dominated))
 
         uniques_shapes = [unique.shape[0] for unique, inverse, counts in uniques_inverse_counts]
 
-        row = generate_row(env=env,
-                           model=model,
-                           uniques_shapes=uniques_shapes,
-                           non_dominated=non_dominated,
-                           non_dominated_perc=non_dominated_perc,
-                           correct_non_dom=correct_non_dom if fixed_env_flag else None)
+        row = generate_row(env=env, model=model, uniques_shapes=uniques_shapes, non_dominated=non_dominated)
         df = df.append(row, ignore_index=True)
 
     if fixed_env_flag:
         print(overall_non_dominated)
-        for exp_id in exp_ids:
+        for exp_id in tqdm(exp_ids):
             env, model = exp_id[:2]
-
-            values = [
-                np.mean(np.isin(non_dom, overall_non_dominated))
-                for non_dom in per_agent_non_dominated[exp_id]
+            # Counts percentage of times that an overall_non_dominated reward vector has been taken by every
+            # agent in this exp_id. This is rendered more efficient by only considering the non-dominated
+            # vectors for that agent and their counts.
+            non_dominated_perc = [
+                np.sum([
+                    counts[is_non_dominated][np.all(unique[is_non_dominated] == overall_non_dom, axis=1)]
+                    for overall_non_dom in overall_non_dominated
+                ]) / np.sum(counts)
+                for unique, inverse, counts, is_non_dominated in stored_info[exp_id]
             ]
 
-            mean = np.round(np.mean(values) * 100, 1)
-            std_err = np.round(np.std(np.array(values) * 100) / np.sqrt(len(values)), 1)
+            overall_non_dom_coverage = []
+            non_dominated_perc = []
+            correct_non_dom_perc = []
+            for unique, inverse, counts, is_non_dominated in stored_info[exp_id]:
+                non_dom = unique[is_non_dominated]
+                is_overall_non_dom = np.any(
+                    [np.all(non_dom == overall_non_dom, axis=1) for overall_non_dom in overall_non_dominated],
+                    axis=0)
+                overall_non_dom_coverage.append(np.mean(is_overall_non_dom))
 
-            df.loc[(df["Model"] == model) & (df["Setting"] == env),
-                   "Overall Non-Dominated"] = f"{mean} (+-{std_err})"
+                non_dom_counts = counts[is_non_dominated]
+                non_dominated_perc.append(np.sum(non_dom_counts[is_overall_non_dom]) / np.sum(counts))
+
+                correct_non_dom_perc.append(
+                    compute_correct_non_dominated_ratio(env=env,
+                                                        unique=unique,
+                                                        inverse=inverse,
+                                                        is_non_dominated=is_non_dominated,
+                                                        overall_non_dominated=overall_non_dominated))
+
+            mean_val_non_dom_perc = np.round(np.mean(non_dominated_perc) * 100, 1)
+            std_err_non_dom_perc = np.round(
+                np.std(np.array(non_dominated_perc) * 100) / np.sqrt(len(non_dominated_perc)), 1)
+
+            mean_val_correct_non_dom_perc = np.round(np.mean(correct_non_dom_perc) * 100, 1)
+            std_err_correct_non_dom_perc = np.round(
+                np.std(np.array(correct_non_dom_perc) * 100) / np.sqrt(len(correct_non_dom_perc)), 1)
+
+            mean_val_overall_non_dom_coverage = np.round(np.mean(overall_non_dom_coverage) * 100, 1)
+            std_err_overall_non_dom_coverage = np.round(
+                np.std(np.array(overall_non_dom_coverage) * 100) / np.sqrt(len(overall_non_dom_coverage)), 1)
+
+            df.loc[((df["Model"] == model) & (df["Setting"] == env)),
+                   "Non-Dominated %"] = f"{mean_val_non_dom_perc} (+-{std_err_non_dom_perc})"
+            df.loc[((df["Model"] == model) & 
+                    (df["Setting"] == env)),
+                   "Correct Non-Dominated"] = f"{mean_val_correct_non_dom_perc} (+-{std_err_correct_non_dom_perc})"
+            df.loc[((df["Model"] == model) &
+                   (df["Setting"] == env))
+                   , "Overall Non-Dominated"] = f"{mean_val_overall_non_dom_coverage} (+-{std_err_overall_non_dom_coverage})"
 
     df['Setting'] = pd.Categorical(df["Setting"], ENVS)
     df['Model'] = pd.Categorical(df["Model"], MODELS)
