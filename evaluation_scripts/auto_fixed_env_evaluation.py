@@ -141,7 +141,7 @@ def utility_list(utility_type: str):
             for dual_thresh1 in range(3)
             for dual_thresh2 in range(3)
             for dual_thresh3 in range(3)
-            for r0 in np.arange(-20, 21, step=6)
+            for r0 in np.arange(-20, 21, step=5)
             for r1 in np.arange(-20, 21, step=6)
             for r2 in np.arange(-20, 21, step=6)
             for r3 in np.arange(-20, 21, step=6)
