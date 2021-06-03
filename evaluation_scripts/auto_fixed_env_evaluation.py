@@ -136,17 +136,24 @@ def utility_list(utility_type: str):
         return [
             DualThresholdUtility(dual_thresholds_and_coefficients=np.array(
                 [[31, 31, dual_thresh0, dual_thresh1, dual_thresh2, dual_thresh3], [-1, -5, r0, r1, r2, r3]],
-                dtype=np.float32)) for dual_thresh0 in range(3) for dual_thresh1 in range(3)
-            for dual_thresh2 in range(3) for dual_thresh3 in range(3) for r0 in np.arange(-20, 21, step=6)
-            for r1 in np.arange(-20, 21, step=6) for r2 in np.arange(-20, 21, step=6)
+                dtype=np.float32))
+            for dual_thresh0 in range(3)
+            for dual_thresh1 in range(3)
+            for dual_thresh2 in range(3)
+            for dual_thresh3 in range(3)
+            for r0 in np.arange(-20, 21, step=6)
+            for r1 in np.arange(-20, 21, step=6)
+            for r2 in np.arange(-20, 21, step=6)
             for r3 in np.arange(-20, 21, step=6)
-            if (r0 > 0) or (r1 > 0) or (r2 > 0) or (r3 > 0)
+            if (((r0 > 0) and (dual_thresh0 > 0)) or ((r1 > 0) and (dual_thresh1 > 0)) or 
+                ((r2 > 0) and (dual_thresh2 > 0)) or ((r3 > 0) and (dual_thresh3 > 0)))
         ]
     elif utility_type == "linear_dual_threshold":
         return [
             DualThresholdUtility(dual_thresholds_and_coefficients=np.array(
                 [[31, 31, 3, 3, 3, 3], [-1, -5, r0, r1, r2, r3]], dtype=np.float32))
-            for r0 in np.arange(-20, 21, step=2) for r1 in np.arange(-20, 21, step=2)
+            for r0 in np.arange(-20, 21, step=2)
+            for r1 in np.arange(-20, 21, step=2)
             for r2 in np.arange(-20, 21, step=2)
             for r3 in np.arange(-20, 21, step=2)
             if (r0 > 0) or (r1 > 0) or (r2 > 0) or (r3 > 0)
@@ -154,7 +161,8 @@ def utility_list(utility_type: str):
     elif utility_type == "linear":
         return [
             LinearUtility(weights=np.array([-1, -5, r0, r1, r2, r3], dtype=np.float32))
-            for r0 in np.arange(-20, 21, step=2) for r1 in np.arange(-20, 21, step=2)
+            for r0 in np.arange(-20, 21, step=2)
+            for r1 in np.arange(-20, 21, step=2)
             for r2 in np.arange(-20, 21, step=2)
             for r3 in np.arange(-20, 21, step=2)
             if (r0 > 0) or (r1 > 0) or (r2 > 0) or (r3 > 0)
