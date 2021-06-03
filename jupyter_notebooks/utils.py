@@ -175,7 +175,8 @@ def match_utility_to_fixed_env(env: str) -> List[UtilityFunction]:
                 for r1 in np.arange(-20, 21, step=6)
                 for r2 in np.arange(-20, 21, step=6)
                 for r3 in np.arange(-20, 21, step=6)
-                if (r0 > 0) or (r1 > 0) or (r2 > 0) or (r3 > 0)
+                if (((r0 > 0) and (dual_thresh0 > 0)) or ((r1 > 0) and (dual_thresh1 > 0)) or 
+                    ((r2 > 0) and (dual_thresh2 > 0)) or ((r3 > 0) and (dual_thresh3 > 0)))
             ],
             "linear_dual_threshold": [
                 DualThresholdUtility(dual_thresholds_and_coefficients=np.array(
