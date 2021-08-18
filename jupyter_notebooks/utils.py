@@ -161,6 +161,9 @@ def match_utility_to_fixed_env(env: str) -> List[UtilityFunction]:
     # Defining it as a global variable to avoid reinitializing it on every call of this function.
     global FIXED_ENV_UTILITIES
     if "FIXED_ENV_UTILITIES" not in globals():
+        # ATTENTION!!!
+        # It is very important that this variable be the same as what would be the output of
+        # evaluation_scripts/auto_fixed_env_evaluation.utility_list()
         FIXED_ENV_UTILITIES = {
             "dual_threshold": [
                 DualThresholdUtility(dual_thresholds_and_coefficients=np.array(
@@ -397,7 +400,7 @@ def uniques_non_dom_table(results_path: Path, fixed_env_flag: bool = True) -> pd
         df = df.append(row, ignore_index=True)
 
     if fixed_env_flag:
-        print(overall_non_dominated)
+        overall_non_dominated = overall_non_dominated[np.any(overall_non_dominated[:, 2:], axis=1)]
         for exp_id in tqdm(exp_ids):
             env, model = exp_id[:2]
             # Counts percentage of times that an overall_non_dominated reward vector has been taken by every
